@@ -1,0 +1,2198 @@
+\documentclass[twocolumn,showpacs,amsmath,amssymb,prx,footinbib,floatfix,superscriptaddress]{revtex4-1}
+\usepackage{graphicx}
+\usepackage{braket}
+\usepackage{savesym}
+\usepackage{amsfonts}
+\usepackage{bm}
+\usepackage{color}
+\usepackage{subfigure}
+\usepackage{wasysym}
+\usepackage{upgreek}
+\usepackage{float}
+\usepackage{dsfont}
+\usepackage{mathtools}% Loads amsmath
+\usepackage{multirow}
+\usepackage[usenames,dvipsnames,svgnames,table]{xcolor}
+\usepackage{hyperref}
+\usepackage{hhline} %for double horizontal lines without vertical break in tabular environment
+\usepackage{multirow} %for cells that span multiple rows in columns
+
+\newcommand{\Eq}[1]{Eq.~(\ref{#1})}
+\newcommand{\Fig}[1]{Fig.~\ref{#1}}
+\newcommand{\tr}[0]{\textrm{Tr}}
+\newcommand{\ra}[0]{\rightarrow}
+\usepackage{makecell}
+
+\usepackage[english]{babel}
+
+\hypersetup{
+	colorlinks=true,       % false: boxed links; true: colored links
+	linkcolor=VioletRed,  % color of internal links (change box color with linkbordercolor)
+    citecolor=JungleGreen,        % color of links to bibliography
+    filecolor=Orchid,      % color of file links
+    urlcolor=black           % color of external links
+}
+\setlength{\tabcolsep}{8pt}
+
+\begin{document}
+
+
+\title{Recurrent Neural Network Wave Functions} 
+
+\author{Mohamed Hibat-Allah}
+\email{mohamed.hibat.allah@uwaterloo.ca}
+
+\affiliation{Vector Institute, MaRS Centre, Toronto, Ontario, M5G 1M1, Canada}
+\affiliation{Perimeter Institute for Theoretical Physics, 31 Caroline Street North, Waterloo, Ontario, N2L 2Y5, Canada} 
+\affiliation{Department of Physics and Astronomy, University of Waterloo, Ontario, N2L 3G1, Canada}
+
+\author{Martin Ganahl}
+\affiliation{Perimeter Institute for Theoretical Physics, 31 Caroline Street North, Waterloo, Ontario, N2L 2Y5, Canada}
+
+\author{Lauren E. Hayward}
+\affiliation{Perimeter Institute for Theoretical Physics, 31 Caroline Street North, Waterloo, Ontario, N2L 2Y5, Canada}
+
+\author{Roger G. Melko}
+\affiliation{Perimeter Institute for Theoretical Physics, 31 Caroline Street North, Waterloo, Ontario, N2L 2Y5, Canada}
+\affiliation{Department of Physics and Astronomy, University of Waterloo, Ontario, N2L 3G1, Canada}
+
+\author{Juan Carrasquilla}
+\affiliation{Vector Institute, MaRS Centre, Toronto, Ontario, M5G 1M1, Canada}
+\affiliation{Department of Physics and Astronomy, University of Waterloo, Ontario, N2L 3G1, Canada}
+
+
+
+
+\date{\today}
+
+%%%%%%%%%%%%%%%%%% ABSTRACT %%%%%%%%%%%%%%%%%%
+\begin{abstract}
+
+A core technology that has emerged from the artificial intelligence revolution is the recurrent neural network (RNN).
+Its unique sequence-based architecture provides a tractable likelihood estimate with stable training paradigms, 
+a combination that has precipitated many spectacular advances in natural language processing and neural machine translation.
+This architecture also makes a good candidate for a variational wave function, where the RNN parameters are tuned to learn the approximate ground state of a quantum Hamiltonian. In this paper, we demonstrate the ability of RNNs to represent several many-body wave functions, optimizing the variational parameters using a stochastic approach.  Among other attractive features of these variational wave functions, their autoregressive nature allows for the efficient calculation of physical estimators by providing independent samples. We demonstrate the effectiveness of RNN wave functions by calculating ground state energies, correlation functions, and entanglement entropies for several quantum spin models of interest to condensed matter physicists in one and two spatial dimensions.
+
+\end{abstract}
+
+
+\maketitle
+
+%%%%%%%%%%%%%%%%%% INTRODUCTION %%%%%%%%%%%%%%%%%%
+\section{Introduction}
+
+The last decade has marked the start of a worldwide artificial intelligence (AI) revolution, which is dramatically affecting industry, science, and society.
+The source of the current AI resurgence can largely be traced back to AlexNet~\cite{hinton2012}, one of the most influential breakthrough papers in computer vision, which provided a dramatic quantitative improvement in object recognition tasks and
+popularized the paradigm of deep learning~\cite{LeCun2015}.
+The concept of deep learning encompasses a set of machine learning techniques where data are processed through the composition of parametrized nonlinear layers, each of which generates increasingly abstract representations of the original data~\cite{LeCun2015}.
+This paradigm has demonstrated an unprecedented unifying power by making advances in areas as diverse as image recognition~\cite{he2016}, natural language processing~\cite{young2018}, drug discovery~\cite{vamathevan2019}, self-driving cars~\cite{selfdrivingcar2019}, game play~\cite{silver2017mastering}, and more.
+
+The striking performance of deep learning methods has motivated researchers to use a machine learning perspective to reexamine problems in the physical sciences, including areas such as particle physics, cosmology, materials science, quantum chemistry, and statistical physics~\cite{carleo2019machine}. The exploration of machine learning techniques has been particularly prominent in the field of quantum many-body physics, where the task of elucidating the equilibrium and non-equilibrium properties of interacting many-particle systems remains at the research frontier of quantum information and condensed matter physics.
+One of the first successful technology transfers from machine learning into many-body physics involved the use of neural network methods in 
+a variational calculation~\cite{carleo2017}.
+The variational principle is the theoretical bedrock behind many of the most powerful numerical approaches to solving many-body problems in quantum mechanics~\cite{PhysRev.136.B864,PhysRev.108.1175,PhysRevLett.50.1395}. 
+Modern incarnations range from well-established techniques such as variational Monte Carlo (VMC)~\cite{becca2017} and tensor networks (TN)~\cite{orus2019} to variational quantum eigensolvers (VQE) for quantum computation~\cite{peruzzo2014a}.  
+The resurgence of interest in machine learning has motivated a rich new playground for variational calculations based on neural networks~\cite{androsiuk1993,LAGARIS19971,sugawara2001,carleo2017,melko2019}.
+Simultaneous to the computer vision revolution, a wide array of model architectures and algorithmic advances have also emerged in the context of natural language processing (NLP) -- the technology that enables computers to process and understand human language. Some of the most important algorithmic advances in NLP have been developed in the context of sequence learning using {\it recurrent neural networks} (RNNs)~\cite{hochreiter1997long,graves2012supervised,cho2014learning,chung2014,lipton2015}.
+These have resulted in impressive results in speech and text comprehension, as well as in state-of-the-art results in neural machine translation. 
+With RNNs and other algorithmic and conceptual advances, algorithms are bringing machine translation and speech recognition closer to the human level with unprecedented success~\cite{chung2014,Transformer,devlin2018bert,yang2019xlnet}. Here we explore whether the power and scalability of NLP models such as the RNN can be extended to  applications in physical systems, in particular to perform variational calculations to find the low-energy states of quantum many-body Hamiltonians.
+
+RNNs have already proven to be powerful tools within the field of many-body physics. In Ref.~[\onlinecite{Carrasquilla2019}], RNNs were applied in the context of quantum state tomography and were found to be capable of representing a broad range of complex quantum systems, including prototypical states in quantum information and ground states of local spin models.
+Furthermore, RNNs have established similarities to matrix product states (MPS) and are capable of capturing entanglement properties of quantum many-body systems~\cite{PhysRevLett.122.065301}.
+To date however, little effort has been made to develop NLP technology for use together with the variational principle.
+Here we investigate the power of RNNs and their extensions for approximating the ground state of strongly correlated local Hamiltonians.
+We demonstrate how the variational principle can be combined with RNNs to yield highly efficient ansatz wave functions. Our proposal makes use of the {\it autoregressive} property \cite{Bengio2000,NADE,Wu_2019} of RNNs, which, unlike traditional VMC methods, allows for sampling from the wave function. 
+We variationally optimize our RNNs to approximate ground states of various strongly correlated quantum systems in one and two dimensions. 
+We find excellent agreement for local correlation functions and entanglement entropy upon comparison with well-established state-of-the-art approaches, while requiring only a fraction of the variational parameters. 
+Through extensive scaling studies, we show that the intrinsic bias of our ansatz can be systematically reduced to yield highly accurate ground state approximations of large quantum systems.
+
+
+
+%%%%%%%%%%%%%%%%%% RNN %%%%%%%%%%%%%%%%%%
+
+
+\section{Classical and quantum recurrent neural networks}
+\subsection{RNNs for classical probability distributions}
+\label{sec:RNN_wf}
+We consider probability distributions defined over a discrete sample space, where a single configuration consists of a list $\bm{\sigma}\equiv (\sigma_1,\sigma_2,\dots, \sigma_N)$ of $N$ variables $\sigma_n$,
+and $\sigma_n\in\{0,1,\dots ,d_v-1\}$. Here, the {\it input dimension} $d_v$ represents the number of possible values that 
+any given variable $\sigma_n$ can take. 
+A central task in machine learning is to use a set of empirical samples to infer probability distributions in cases where there are strong correlations among the variables $\sigma_n$.
+We denote the probability of a configuration $\bm{\sigma}$ by 
+$P(\bm{ \sigma})\equiv P(\sigma_1, \sigma_2,\dots ,\sigma_N)$, and use the product rule for probabilities to express this distribution as 
+\begin{align}
+    P(\bm{ \sigma})= P(\sigma_1)P(\sigma_2|\sigma_1) \cdots P(\sigma_N|\sigma_{N-1}, \dots, \sigma_2, \sigma_1),
+    \label{eq:prod_rule}
+\end{align}
+where 
+$P(\sigma_i|\sigma_{i-1}, \dots, \sigma_2, \sigma_1)\equiv P(\sigma_i|\sigma_{<i})$
+is the conditional distribution of $\sigma_i$ given a configuration of all $\sigma_j$ with $j<i$.
+
+Specifying every conditional probability $P(\sigma_i| \sigma_{<i})$ gives a full characterization of any possible distribution $P(\bm{ \sigma})$, but in general such a representation grows exponentially with system size $N$. 
+Typically, real-world distributions are assumed to endow enough structure on the problem to allow for accurate 
+approximate descriptions of $P(\bm{\sigma})$ that use far fewer resources~\cite{Goodfellow-et-al-2016}.
+This assumption is also applicable in the context of ground state wave functions that arise in physical systems, which
+we will discuss at length in this paper.
+
+RNNs form a class of correlated probability distributions of the form \Eq{eq:prod_rule},
+where the $P(\bm \sigma)$ are entirely specified through the conditionals $P(\sigma_i| \sigma_{<i})$. 
+The elementary building block of an RNN is a {\it recurrent cell}, that has emerged in different versions in the past~\cite{lipton2015}. In its simplest form, a recurrent cell is a non-linear function
+that maps the direct sum (or concatenation) of an incoming {\it hidden} vector $\bm{h}_{n-1}$ of dimension $d_h$ and an input vector $\bm{\sigma}_{n-1}$ to an output hidden vector $\bm{h}_{n}$ of dimension $d_h$ such that
+\begin{equation}
+    \bm{h}_{n} = f\left(W 
+    [\bm{h}_{n-1} ; \bm{\sigma}_{n-1}] + \bm{b}\right),
+    \label{eq:rnn_action}
+\end{equation}
+where $f$ is a non-linear {\it activation function}.
+
+The parameters of this simple RNN (vanilla RNN) are given by the
+weight matrix $W \in \mathbb{R}^{d_h \times (d_h + d_v)}$, the bias vector $\bm{b}\in \mathbb{R}^{d_h}$, and the states $\bm{h}_0$ and $\bm{\sigma}_0$ that initialize the recursion. In this paper, we fix $\bm{h}_0$ and $\bm{\sigma}_0$ to constant values. The vector $\bm{\sigma}_n$ is a one-hot encoding of the input $\sigma_n$ such that, e.g., 
+$\bm{\sigma}_n = (1,0), (0,1)$ for $\sigma_n = 0,1$ (respectively) when the input dimension is two. 
+The computation of the full probability $P(\bm \sigma)$ is carried out by sequentially computing
+the conditionals, starting with $P(\sigma_1)$, as
+\begin{equation*}
+P\left(\sigma_n | \sigma_{n-1}, \dotsc , \sigma_{1} \right) = \bm{y}_{n} \cdot \bm{\sigma}_n,
+\end{equation*}
+where the right-hand side contains the usual scalar product between vectors and
+\begin{equation}
+    \bm{y}_{n} \equiv S\left( U\boldsymbol{h}_{n} + \bf{c}\right).\label{eq:softmax_layer}
+\end{equation}
+Here, $U\in \mathbb{R}^{d_v\times d_h}$ and $c\in \mathbb{R}^{d_v}$ are weights and biases of a so-called Softmax layer, and the Softmax activation function $S$ is given by \[
+\text{S}(v_n) = \frac{\exp(v_n)}{\sum_i \exp(v_i)}.
+\]
+In Eq.~\eqref{eq:softmax_layer} $\bm y_n=(y_n^1, \dots, y_n^{d_v})$ is a $d_v$-component vector of  positive, real numbers summing up to $1$, i.e.,
+\begin{align}
+    \lVert\bm y_n\rVert_1 =1,
+\end{align}
+and thus forms a probability distribution over the states $\sigma_n$.
+Once the vectors $\bm y_n$ have been specified, the full probability $P(\bm \sigma)$ is given by
+\[
+P(\bm{\sigma}) = \prod_{n=1}^N \bm{y}_n \cdot \bm{\sigma}_{n}.
+\]
+Note that $P(\bm \sigma)$ is already properly normalized to unity such that
+\begin{align}
+  \lVert P(\bm \sigma)\rVert_1 = 1.
+\end{align}
+Sampling from an RNN probability distribution is achieved in a similar sequential fashion.
+To generate a sample $\bm \sigma= (\sigma_1,\dots ,\sigma_N)$ consisting of a set of $N$
+configurations $\sigma_n$, one first calculates the hidden state $\bm{h}_1$
+and the probability $\bm{y}_1$ from the initial vectors $\bm{h}_0$ and $\bm{\sigma}_0$.
+ A sample $\sigma_1$ from the probability distribution  $\bm{y}_1$ is drawn, which is then fed as
+ a one-hot vector $\bm{\sigma}_1$ along with $\bm{h}_1$ back into the recurrent cell to obtain $\bm{y}_2, \bm{h}_2$ and then $\sigma_2$. The procedure is then iterated until $N$ configurations $\sigma_n$ have been obtained as illustrated in Fig.~\ref{fig:RNN}(c).
+
+From Eqs.~\eqref{eq:rnn_action} and \eqref{eq:softmax_layer}, it is evident that
+the hidden vector $\bm{h}_{n}$ encodes information about previous spin configurations $\sigma_{<n}$.
+For correlated probabilities, the history  $\sigma_{<n}$ is relevant to the prediction of the probabilities of the following $\sigma_n$. By passing on hidden states in Eq. \eqref{eq:softmax_layer} between sites, the RNN 
+is capable of modeling strongly correlated distributions.
+Hereafter, we shall call the dimension $d_h$ of the hidden state $\bm{h}_{n}$ the {\it number of memory units}.
+We emphasize that the weights $W$ and $U$ and the biases $\bm{b}$ and $\bm{c}$ together comprise the variational parameters of our ansatz wave function of the next section.
+These parameters are typically shared among the different values of $n$, giving rise to a highly compact parametrization of the probability distribution. 
+Once the dimension $d_h$ is specified, the number of parameters in the ansatz is independent of the system size $N$.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{RNN.pdf}
+    \caption{(a) Left-hand side: An RNN cell (green box) takes a sequence of inputs $\{\bm{\sigma}_n\}$, where at each step $n$ the input $\bm{\sigma}_{n-1}$ and the vector $\bm{h}_{n-1}$ are fed in the RNN cell which generates a vector $\bm{h}_n$ called the hidden state of the RNN. $\bm{h}_n$ is meant to encode the history of the previous inputs $\bm{\sigma}_{n'<n}$. Moreover, the hidden state $\bm{h}_n$ is fed to a fully connected layer with Softmax activation $S$ (magenta circles) to compute conditional probabilities. Right-hand side: The unrolled version of the RNN layer on the left-hand side. (b) A deep RNN model with $N_l$ stacked single RNN cells (green blocks) followed by a fully connected layer with activation function $A$ (magenta circle). Each single RNN cell at the $\ell$-th layer has its corresponding hidden state $\boldsymbol{h}^{\ell}_{n}$, which serves also as an input for the RNN cell at the $(\ell+1)$-th layer. (c) A graphical representation of autoregressive sampling of RNNs.}
+    \label{fig:RNN}
+\end{figure}
+
+By construction, the model allows for an efficient estimation of the normalized probability of a given configuration $\bm \sigma$. 
+This construction is unlike energy-based models, which require intractable calculations of the partition function, or likelihood-free models such as Generative Adversarial Networks (GANs) that do not allow for an explicit estimation of probabilities~\cite{goodfellow2016nips,Goodfellow-et-al-2016}. The sequential process of computing the probability vectors $\bm{y}_n$ is schematically depicted in Fig.~\ref{fig:RNN}(a). 
+Deep architectures can be obtained by stacking several RNN cells as shown in Fig.~\ref{fig:RNN}(b) for a general activation function $A$ (not necessarily Softmax).
+As illustrated in Fig.~\ref{fig:RNN}(c), RNNs have the {\it autoregressive property}, meaning that the conditional 
+probability $P(\sigma_n|\sigma_{<n})$ depends only on configurations 
+$\sigma_1,\dots \sigma_{n-1}$. We also note that the computational cost
+of sampling a configuration $\sigma_1,\dots\sigma_N$ is linear in the length $N$ of the configuration. 
+Another important property of the normalized RNN probability distribution is that it can be used to produce successive samples
+$\bm{\sigma}$ and $\bm{\sigma'}$ that are independent. 
+Taking advantage of this property, the sampling procedure can be parallelized.
+
+
+In practice, training vanilla RNNs can be challenging, since capturing long-distance correlations between the variables $\sigma_{n}$ tends to make the gradients either explode or vanish~\cite{Bengio94,Kolen2001,pascanu2013difficulty,chung2014}. Similar to MPS~\cite{fannes_finitely_1992}, long-distance correlations in RNNs are suppressed exponentially~\cite{shen2019} and extensions of the vanilla RNN have been proposed \cite{hochreiter1997long,cho-etal-2014-properties} in order to improve on this limitation. Two successful examples are the long short-term memory (LSTM) unit \cite{hochreiter1997long}, and the gated recurrent unit (GRU) \cite{cho-etal-2014-properties}. Unless stated otherwise, in this paper we use
+the GRU \cite{cho-etal-2014-properties} as the elementary cell in our (one-dimensional) RNNs to study models in one and two spatial dimensions. The details of the implementation can be found in App.~\ref{sec:GRU}. 
+
+Furthermore, we explore the use of two-dimensional (2D) vanilla RNNs~\cite{graves2012supervised},
+where information about the spatial location of neighboring spins is exploited by the RNN ansatz.
+The basic idea of 2D RNNs is to replace the single recurrent connection in a standard RNN, as shown in~\Eq{eq:rnn_action}, with two
+recurrent connections that are passed to the neighboring sites. Thus, at each point in the
+lattice the hidden layer of the network receives both spin configuration inputs and the hidden vectors
+from the neighboring sites, in a way that respects the autoregressive property. 
+We provide the details of the implementation in Sec.~\ref{sec:2D_TFIM} and App.~\ref{sec:2DRNN}. 
+
+
+\subsection{RNN wave functions}
+\label{sec:RWF}
+The previous section focused exclusively on the efficient parametrization
+of classical probability distributions $P(\bm{\sigma})$. In contrast,
+quantum mechanical wave functions are in general a set of complex valued 
+amplitudes $\psi(\bm{\sigma})$, rather than conventional probabilities.
+Before discussing how to modify the RNN ansatz to represent complex wave functions,
+we note that an important class of {\it stoquastic} many-body
+Hamiltonians has ground states $\ket{\Psi}$ with real and positive amplitudes
+in the standard product spin basis~\cite{Bravyi:2008:CSL:2011772.2011773}.
+Thus, these ground states have representations in terms of probability distributions,
+\begin{align}
+    \ket{\Psi} = \sum_{\bm{\sigma}} \psi(\bm{\sigma})\ket{\bm{\sigma}} = \sum_{\bm{\sigma}}\sqrt{P(\bm{\sigma})}\ket{\bm{\sigma}}.
+\end{align}
+This property has been exploited extensively in wave function representations using generative models 
+such as restricted Boltzmann machines~\cite{melko2019}.
+For such wave functions, it is also natural to try to approximate $P(\bm{\sigma})$ with a
+conventional RNN, as illustrated in Fig.~\ref{fig:RNNWF}(a). 
+For later reference we call this architecture a {\it positive recurrent neural network wave function} (pRNN wave function). 
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.95\linewidth]{RNNWF_v2.pdf}
+    \caption{(a) pRNN wave function: A graphical representation of the computation of positive amplitudes using one RNN cell along with a Softmax layer (magenta circles) to compute the modulus $\lvert\psi(\bm{\sigma})\rvert^2 = P(\bm{\sigma})$.
+    (b) cRNN wave function: A graphical representation of the computation of complex amplitudes using one RNN cell along with a Softmax layer (magenta circles) and a Softsign (SS) layer (orange circles). The first computes the modulus $\lvert\psi(\bm{\sigma})\rvert^2 = P(\bm{\sigma})$, the second to computes the phase $\phi(\bm{\sigma})$ of $\psi(\bm{\sigma})$.}
+    \label{fig:RNNWF}
+\end{figure}
+
+The generalization to the complex case starts by splitting the wave function into an amplitude and 
+phase $\phi(\bm{\sigma})$ \cite{torlai2018} as
+\begin{align}
+    \ket{\Psi} = \sum_{\bm{\sigma}}\exp({\rm i}\phi(\bm{\sigma}))\sqrt{P(\bm{\sigma})}\ket{\bm{\sigma}}.
+\end{align}
+As illustrated in Fig.~\ref{fig:RNNWF}(b), we use one RNN cell and a Softmax layer to model the probability, 
+together with a Softsign layer (as defined below) to model the phase.
+In this parametrization, the first layer uses the Softmax activation function to get conditional probabilities $P_n$ as
+\begin{align}
+P_n = \bm{y}_n^{(1)} \cdot \bm{\sigma}_n,
+\end{align}
+where
+\begin{equation}
+\bm y^{(1)}_n = \text{S}\left(U^{(1)}\boldsymbol{h}_{n} + \bm{c}^{(1)}\right),
+\end{equation}
+in a similar fashion to Eq.~\eqref{eq:softmax_layer}. The Softsign layer is used to compute the phases as
+\begin{align}
+\phi_n = \bm{y}_n^{(2)} \cdot \bm{\sigma}_n,
+\end{align}
+where
+\begin{equation}
+\bm y^{(2)}_n = \pi\; \text{Softsign}\left(U^{(2)}\boldsymbol{h}_{n} + \bm{c}^{(2)}\right).
+\end{equation}
+The Softsign function is defined as
+\begin{equation*}
+    \text{Softsign}(x) = \frac{x}{1+\lvert x \rvert} \in (-1,1).
+\end{equation*}
+Finally, the probability $P(\bm{\sigma})$ is obtained from the $N$ individual
+contributions $P_n$ as
+\begin{align}
+  P(\bm{\sigma}) \equiv \Pi_{n=1}^{N} P_n,
+\end{align}
+and, similarly, the phase $\phi(\bm \sigma)$ is computed as
+\begin{align}
+  \phi(\bm{\sigma}) \equiv \sum_{n=1}^{N} \phi_n.
+\end{align}
+Note that sampling from the square of the
+amplitudes $P(\bm{\sigma})$ is unaffected by the Softsign layer and is
+carried out, as described above, using only the Softmax layer as in Fig.~\ref{fig:RNN}(c).
+For later reference, we call this architecture a {\it complex recurrent neural network wave function} (cRNN wave function), and hereafter, the term RNN wave function will refer to both pRNN wave functions and cRNN wave functions. 
+Details about the dimensions of the variational parameters of RNN wave functions can be found in App.~\ref{sec:GRU}. 
+
+%%%%%%%%%%%%%%%%%% RESULTS %%%%%%%%%%%%%%%%%%
+%%%%%%%%%% TFIM %%%%%%%%%%
+\section{Ground States with RNN wave functions}
+\label{sec:results}
+We focus our attention on the ground state properties of prototypical
+Hamiltonians in condensed matter physics including the one- and two-dimensional (1D and 2D) transverse field Ising model (TFIM), as well as the 1D $J_1$-$J_2$ model, both with open boundary conditions. Their Hamiltonians are given by
+\begin{equation}
+    \hat{H}_{\text{TFIM}} = - \sum_{\langle i,j \rangle} \hat{\sigma}^{z}_i \hat{\sigma}^{z}_j - h \sum_{i} \hat{\sigma}^{x}_i,
+    \label{eq:TFIM}
+\end{equation}
+where $\hat{\sigma}^{(x,y,z)}_i$ are Pauli matrices acting on site $i$, and 
+\begin{equation}
+    \hat{H}_{J_1-J_2} = J_1 \sum_{\langle i,j \rangle} \hat{{\bf S}}_i \cdot \hat{{\bf S}}_{j} + J_2 \sum_{\langle \langle i,j \rangle \rangle} \hat{{\bf S}}_i \cdot \hat{{\bf S}}_{j}.
+    \label{eq:J1J2}
+\end{equation}
+where $\hat{{\bf S}}_i$ is a spin-1/2 operator.  Here,
+$\langle i,j \rangle$ and $\langle \langle i,j \rangle \rangle$ denote
+nearest- and next-nearest-neighbor pairs, respectively. Energies for the $J_1$-$J_2$
+model are measured in units of $J_1=1$ in the results that follow.
+
+To train our models we use the variational principle, where for a given problem Hamiltonian $\hat{H}$, the optimization strategy involves minimizing the expectation value $ E_\lambda = \braket{\Psi_\lambda|\hat{H}|\Psi_\lambda}\ge E_{0}$ with respect to the variational parameters $\lambda$. Here, $E_{0}$ is the exact ground state energy of $\hat{H}$. The variational parameters $\lambda$ are updated using variants of the gradient descent algorithm with the objective of minimizing $E_\lambda = \braket{\Psi_\lambda|\hat{H}|\Psi_\lambda}$. We provide a detailed description of the VMC scheme and the optimization strategy with which we optimize our RNN wave functions in App.~\ref{sec:VMC}.
+
+Since the TFIM in \Eq{eq:TFIM} is stoquastic, the ground state is positive \cite{Bravyi:2008:CSL:2011772.2011773} and hence we use the pRNN wave function ansatz.
+The $J_1$-$J_2$ model with positive couplings, on the other hand, has a ground state endowed with a sign 
+structure in the computational $z$-basis, and thus we use a cRNN wave function ansatz. 
+
+In the following sections, we use 1D RNN wave functions to approximate the ground state problem of the 1D TFIM and the 1D $J_1$-$J_2$ model, whereas we use both 1D and 2D pRNN wave functions in the case of the 2D TFIM.
+
+\subsection{1D transverse field Ising model}
+\label{sec:1DTFIMresults}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width = \columnwidth]{RelerrorandVar_TFIM_OBC_samp200_N1000_GRURNN_units50.pdf}
+    \includegraphics[width = \columnwidth]{TFIMcorrelations_N80_SS_units50_GRU.pdf}
+    \includegraphics[width = \columnwidth]{TFIMentropy_GRU_units50.pdf}
+    \caption{
+    Results for the pRNN wave function compared with DMRG when targeting the ground state of a 1D TFIM at the critical point. 
+    Our pRNN wave function has one layer with 50 units.
+    (a) The relative error $\epsilon$ and the energy variance per spin $\sigma^2$ against the number of training steps (i.e. gradient descent steps) for $N=1000$ spins. We use only 200 samples per gradient step, which are enough to achieve convergence. 
+    (b) The two-point correlation function $\langle \hat{S}_{40}\hat{S}_n \rangle$ along the $x$-axis and $z$-axis of the optimized pRNN wave function for sites $n>40$ using $10^6$ samples. DMRG results are also shown for comparison. (c) The R\'enyi entropy $S_2$ against the relative size of subregion $A$ for system sizes $N=20$ and $80$. 
+    In both~(b) and~(c), the error bars are smaller than the data points.
+    }
+    \label{fig:1d_TFIM_results}
+\end{figure}
+
+To demonstrate the power of our proposed method, we
+use it to target the ground state of a TFIM in one dimension with $N=1000$
+spins at the critical point $h = 1$ using a pRNN wave function that has a single-layer RNN with $50$ memory units. In \Fig{fig:1d_TFIM_results}(a), we show the evolution of the relative error
+\begin{equation}
+    \epsilon \equiv \frac{|E_{\rm RNN} - E_{\rm DMRG}|}{|E_{\rm DMRG}|},
+\end{equation}
+and the energy variance per spin
+\begin{equation}
+    \sigma^2 \equiv \frac{\left\langle \hat{H}^2 \right\rangle - \left\langle \hat{H} \right\rangle^2}{N},
+    \label{eq:variance}
+\end{equation}
+as a function of the training step. $E_{\text{DMRG}}$ is the ground state energy as obtained from a density matrix renormalization group (DMRG) calculation~\cite{white_density_1992,roberts2019tensornetwork}, and can be considered exact in one dimension. We obtain very accurate results with a modest number of parameters ($\sim 8000$, see App.~\ref{sec:GRU}). 
+For comparison, the number of parameters of a restricted Boltzmann machine (RBM) \cite{carleo2017} with one layer scales as $M N$ with $M$ the number of hidden units and $N$ the number of physical spins.  This scaling implies that the pRNN wave function here has the same number of variational parameters as an RBM with only eight hidden units. 
+
+While energies and variances give a quantitative indication of the quality of a variational wave function, correlation functions provide a more comprehensive characterization. Indeed, correlation functions are at the heart of condensed matter theory since many experimental probes in condensed matter physics directly relate to measurements of correlation functions. Examples include inelastic scattering, which probes density-density correlation functions, and the Green's function, out of which important thermodynamic properties of a quantum system can be computed~\cite{Abrikosov:107441}. In \Fig{fig:1d_TFIM_results}(b)  we compare the RNN results for the two-point correlation functions $\braket{\hat S^x_n\hat S^x_m}$ and $\braket{\hat S^z_n\hat S^z_m}$ with DMRG. 
+Here, we see consistency between the RNN and the DMRG results.
+
+Extracting entanglement entropy from many-body quantum systems is a central theme in condensed matter physics, with entanglement entropy providing an additional window into the structure of complex quantum states of matter beyond what is seen from correlation functions. Of particular interest is the family of {\it R\'enyi entropies}
+of order $\alpha$ of a reduced density matrix $\rho$,
+\begin{equation}
+  S_\alpha (\rho) = \frac{1}{1-\alpha} \log \left ( \text{Tr} \rho^\alpha \right ).
+\end{equation}
+$S_\alpha (\rho)$ encodes important non-local properties of quantum many-body systems such as topological entanglement, and contains information about universal properties of
+quantum phases such as the central charge $c$~\cite{Alioscia2009, Ryu2006}. Due to their
+non-local character, extracting R\'enyi entropies from many-body quantum systems is notoriously
+difficult. Here, we use the so-called {\it replica trick} \cite{hastings2010measuring} to calculate
+the $\alpha=2$ R\'enyi entropy $S_2(\rho)$ for RNN wave functions. The details of the implementation can be found in App.~\ref{sec:entropy}. In \Fig{fig:1d_TFIM_results}(c), we show results for the R\'enyi entropy $S_2(\rho_\ell)$
+for two different system sizes $N=20,80$ of 1D TFIM. $\rho_\ell$ here is the reduced density matrix
+on the first $\ell$ sites of the spin chain, obtained by tracing out all sites $n \in [\ell+1, L]$ such that
+\begin{align}
+  \rho_\ell = \tr_{n\in [\ell+1,L]}\left(\ket{\Psi}\bra{\Psi}\right).
+\end{align}
+Indeed for both system sizes, \Fig{fig:1d_TFIM_results}(c) shows excellent agreement between the pRNN wave function estimation and the DMRG result. To improve the overall quality of the quantum state,  we have enforced the parity symmetry on our pRNN wave function (see App.~\ref{sec:discrete_symmetries}), denoted by ``Symmetric RNN'' in \Fig{fig:1d_TFIM_results}(c). We observe that the symmetric pRNN wave function leads to a more accurate estimate of $S_2(\rho_\ell)$ for $N=80$ sites.
+
+%%%%%%%%%% Frustrated J1-J2 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{1D $J_1-J_2$ model}
+Moving beyond stoquastic Hamiltonians,  we now investigate
+the performance of RNN wave functions for a Hamiltonian
+the ground state of which has a sign structure in the computational basis, specifically the $J_1$-$J_2$ model in one dimension.
+
+We use a variationally optimized deep cRNN wave function with three GRU layers, each with 100 memory units, to approximate the ground state of the $J_1$-$J_2$ model.
+The phase diagram of this model has been studied with DMRG~\cite{white1996}, where it was found that the model exhibits a quantum phase transition at $J_2^c = 0.241167 \pm 0.000005$ \cite{Eggert1996, becca2009variational}
+from a critical Luttinger liquid phase for $J_2 \leq J_2^c$
+to a spontaneously dimerized gapped valence bond state phase for $J_2 \geq J_2^c$.
+
+We impose $U(1)$ spin symmetry in the cRNN wave function
+(see App.~\ref{sec:zeromag}), and target the ground state at four different points $J_2 = 0.0,0.2,0.5,0.8$.
+Note that at $J_2=0$, the Hamiltonian in \Eq{eq:J1J2} can be made stoquastic by a local unitary transformation that rotates every other spin by $\pi$ around the $z$-axis. The ground state can in this case be decomposed as \cite{Marshall1955}
+\begin{equation}\label{eq:marshall}
+    \psi({\bm \sigma}) = (-1)^{M_A({\bm \sigma})} \tilde \psi({\bm \sigma}),
+\end{equation}
+where $M_A(\bm \sigma)$ is given by $M_A(\bm{\sigma}) = \sum_{ i\in A} \sigma_i$ with $\sigma_i \in \{0,1\}$ \cite{Marshall1955} and $\tilde \psi({\bm \sigma})$ is the {\it positive} amplitude of the wave function. The set $A$ comprises the sites belonging to the sublattice of all even (or all odd) sites in the lattice. 
+The prefactor $(-1)^{M_A({\bm \sigma})}$ is known as the Marshall sign of the wave function~\cite{Marshall1955}.
+For $J_2\neq 0$, this decomposition is no longer exact, and $\tilde \psi(\bm \sigma)$ acquires 
+a non-trivial sign structure. For finite $J_2$ the decomposition in \Eq{eq:marshall} can still be
+applied with the hope that the sign structure of $\psi(\bm \sigma)$ remains close to the Marshall sign~\cite{choo2019study}.
+
+\begin{figure}[tb]
+    \centering
+    \includegraphics{J1J2_N100_GRURNN_relerror_samp500_numunits100_numlayers3.pdf}
+    \caption{The relative error (compared to DMRG) of the cRNN wave function trained on the 1D $J_1-J_2$ model with $N=100$ spins for different values $J_2$, 
+    both without a prior sign (represented by ``No Sign'') and with a prior Marshall sign as in \Eq{eq:marshall} (represented by ``Marshall Sign'').
+    We observe that applying a Marshall sign improves the accuracy.
+    }
+    \label{fig:J1J2_results}
+\end{figure}
+
+In \Fig{fig:J1J2_results}, we compare ground state energies of the cRNN wave function trained on the 1D $J_1$-$J_2$ model with $N=100$ spins with and without applying a Marshall sign. 
+For small values of $J_2$, we find a considerable improvement of the energies when applying the Marshall sign on top of the cRNN wave function. This observation highlights the importance of considering a prior ``sign ansatz'' to achieve better results. 
+In the absence of a prior sign, the cRNN wave function can still achieve accurate estimations of the ground state energies, showing that cRNN wave functions can recover some of the unknown sign structure of the ground state. For $J_2=0.8$, however, the improvement is less pronounced, which is expected due to the emergence of a second sign structure in the limit $J_2 \to \infty$ (when the system decouples into two independent unfrustrated Heisenberg chains)~\cite{torlai2019a, Thibaut_2019}, that is widely different from the Marshall sign in Eq.~\eqref{eq:marshall}.
+We omit from \Fig{fig:J1J2_results} our results at the point $J_2=0.5$. In this case, the 1D $J_1$-$J_2$ model reduces to the Majumdar-Ghosh model, where the ground state is a product-state of spin singlets, and we find agreement with the exact ground state energy within error bars when we apply an initial Marshall sign structure.
+We provide a summary of the cRNN wave function's obtained values in App.~\ref{sec:tables_of_results}. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   2D Ising     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{2D transverse field Ising model}
+\label{sec:2D_TFIM}
+\begin{figure*}[!htp]
+    \centering
+    \includegraphics[width = 0.9\linewidth]{2DTFIM.pdf}
+    \caption{ (a): Autoregressive sampling path of 2D spin configurations using 1D RNN wave functions.
+      The 2D configurations are generated through raster scanning, such that in order to generate spin $\sigma_i$ one has to condition on the spins that are previously generated. (b): Autoregressive sampling path of 2D spin configurations using 2D RNN wave functions through a zigzag path, where each site receives two hidden states and two spins from the horizontal and the vertical neighbors that were previously generated. For both panels (a) and (b), the digits and the green dashed arrows indicate the sampling path, while the red arrows indicate how the hidden states are passed from one site to another. (c): A comparison of the variational energy per spin between a 2D pRNN wave function (labeled as 2DRNN), 1D pRNN wave function (labeled as 1DRNN),
+      PixelCNN wave function~\cite{sharir2019deep}, and DMRG with bond dimension $\chi$ for the 2D TFIM on a system with $L_x \times L_y=12 \times 12$ spins. The shaded regions represent the error bars of each method.
+      Note the broken $y$-axis on the plots for $h=3$ and $4$, denoting a change in scale between the upper and lower portions of the plots. These results show that 2D pRNN wave functions can achieve a performance comparable to PixelCNN wave functions and DMRG with a large bond dimension, while requiring only a fraction of their variational parameters. 
+      }
+    \label{fig:2DTFIM_study}
+\end{figure*}
+Understanding strongly correlated quantum many-body systems in $D>1$ spatial dimensions
+is one of the central problems in condensed matter physics. During the last decade,
+numerical approaches such as tensor networks~\cite{verstraete_renormalization_2004,yan_spin-liquid_2011, evenbly_tensor_2015},
+quantum Monte Carlo~\cite{sandvik2010,becca2017}, and neural networks~\cite{carleo2017} have moved
+to the forefront of research in this area. Despite tremendous progress, however, solving correlated quantum many-body systems even in two dimensions remains a challenging problem. We now turn our attention to the application of our
+RNN wave function approach to the 2D quantum Ising model shown in \Eq{eq:TFIM} on a 
+square lattice, a paradigmatic example of a strongly correlated quantum many-body system.
+This model has a quantum phase transition at a critical magnetic field $h^c\approx 3.044$ that separates a magnetically ordered phase from a random paramagnet~\cite{PhysRevE.66.066110}.
+
+The simplest strategy for extending our approach to 2D geometries is to simply treat them as
+folded 1D chains, similar to the ``snaking'' approach used in 2D DMRG calculations (see \Fig{fig:2DTFIM_study}(a)). While this approach works quite well, it has the fundamental drawback that neighboring
+sites on the lattice can become separated in the 1D geometry. As a consequence,
+local correlations in the 2D lattice are mapped into non-local correlations in the 1D geometry,
+which can increase the complexity of the problem considerably.
+For example, 2D DMRG calculations are typically restricted to 2D lattices with small width $L_y$. This problem has led to the development of more powerful tensor network algorithms for 2D quantum systems such as projected entangled pair states (PEPS)~\cite{verstraete_renormalization_2004}.
+
+An advantage of RNN wave functions is their flexibility in how hidden vectors
+are passed between units. To obtain an RNN wave function more suited to a 2D geometry,
+we modify the simple 1D approach outlined above by allowing hidden vectors to also be passed vertically,
+instead of only horizontally, as described in App.~\ref{sec:2DRNN}. This modification is illustrated by the red arrows in \Fig{fig:2DTFIM_study}(b). We refer to
+this geometry in the following discussions as a 2D RNN.
+We optimize the 2D pRNN wave function with a single-layer 2D vanilla RNN cell that has 100 memory units
+(i.e. with $\sim 21000$ variational parameters) to approximate the ground state of
+the 2D quantum Ising model at $h = {2,3,4}$. 
+The training complexity
+of the 2D pRNN wave function is only quadratic in the number of
+memory units $d_h$ (see App.~\ref{sec:2DRNN}), which is very inexpensive compared to, e.g.,
+the expensive variational optimization of PEPS, which scales as $\chi^2\tilde{D}^6$ 
+(where $\tilde{D}$ is the PEPS bond dimension and $\chi$ is the bond dimension of the intermediate MPS)~\cite{vanderstraeten_gradient_2016}.
+
+For comparison, we also optimize a deep 1D pRNN wave function architecture with three layers of
+stacked GRU cells, each with 100 memory units (i.e., with $\sim$152000 variational parameters)
+for the same values of the magnetic field $h$.
+In \Fig{fig:2DTFIM_study}(c) we compare the obtained ground state energies with results from
+2D DMRG calculations (run on the same 1D geometry as for the 1D pRNN wave function) and the PixelCNN
+architecture~\cite{PixelCNN} (with $\sim$800000 variational parameters and results are taken from Ref.~[\onlinecite{sharir2019deep}]).
+For the magnetic fields shown above and for large bond dimensions,
+we obtain excellent agreement between all four methods.
+This agreement is particularly remarkable given that the 2D pRNN wave function uses only about 0.03\%
+of the variational parameters of the DMRG calculation with bond dimension $\chi = 512$, 
+about 2.6\% of the variational parameters of the PixelCNN wave function used in Ref.~[\onlinecite{sharir2019deep}],
+and about 14\% of the parameters used in the 1D pRNN architecture.
+A summary of our results in tabular form can be found in App.~\ref{sec:tables_of_results}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Scaling of resources}
+
+\begin{figure}[!htp]
+    \centering
+    \includegraphics[width = \columnwidth]{Unitsdebug_GRURNN_variance_h1.pdf}
+    \includegraphics[width = \columnwidth]{Unitsdebug_2DTIM_GRURNN_variance_h3.pdf}
+    \caption{The energy variance per spin against the number of memory units of a 1D pRNN wave function trained at the critical point of (a) the 1D TFIM and (b) the 2D TFIM. 
+    Both scalings show that we can systematically reduce the bias in the estimation of the ground state energy.}
+    \label{fig:Scaling_study}
+\end{figure}
+
+The optimization results of our RNN wave function approach depend on several hyperparameters, including the number of memory units, the number of recurrent layers in deep architectures, and the number of samples used to obtain the gradient during an optimization step (see App.~\ref{sec:VMC}). Here, we investigate how the optimized energy and the energy variance per spin $\sigma^2$ (see \Eq{eq:variance}) depend on these parameters.
+This energy variance per spin is an indicator of the quality of the optimized wave function, with exact eigenstates corresponding to $\sigma^2=0$. When targeting eigenstates, deviations from this value can be used to assess the quality of a variational wave function~\cite{Claudius90,Assaraf2003,becca2017}, as previously done in the case of matrix product state based techniques~\cite{Hubig_2018,bauls2019entanglement}. For variational approaches such as DMRG, one typically expects a non-zero value of $\sigma^2$ that decreases when one increases the number of parameters (i.e.,~the expressivity) of the variational wave function. Since the number of variational parameters is directly related to the number of memory units of the pRNN wave function (see App.~\ref{sec:GRU}), we study here the scaling of $\sigma^2$ with the number of memory units. 
+
+In \Fig{fig:Scaling_study}, we present the dependence of $\sigma^2$ on the number of memory units for the 1D and 2D critical TFIMs.
+\Fig{fig:Scaling_study}(a) shows results for $\sigma^2$ for a 1D critical TFIM on three system sizes $N=20, 40$ and $80$, and \Fig{fig:Scaling_study}(b) shows results for the 2D TFIM
+on $4\times 4, 5\times 5$ and $6\times 6$ square lattices. In all cases, we used a single-layer 1D pRNN wave function and $500$ samples during optimization to compute estimates of the gradients. For each $N$ we observe a systematic decrease of $\sigma^2$ (i.e., an increase in quality of the wave function) as we increase the number of memory units.
+
+In App.~\ref{sec:scaling_app}, we study the dependence of $\sigma^2$ on both the number of samples and the number of layers in the pRNN wave function for a critical 1D TFIM.
+We observe only a weak dependence on both parameters.
+The weak dependence on the number of samples suggests that optimizing the RNN wave functions with noisy gradients does not significantly impact the results of the optimization procedure, and yields accurate estimations of the ground state and its energy.
+From the weak dependence on the number of layers we conclude that shallow RNNs with a sufficient number of memory units have enough expressivity and that deep architectures do not seem to be beneficial from an accuracy point of view.
+However, deeper networks could have potential ramifications regarding memory usage and training speed when it comes to training a large number of variational parameters, as shallow RNNs with a large number of memory units are equivalent in terms of number of parameters to deep RNNs with a smaller number of memory units. 
+We also note that adding residual connections between layers \cite{hermans2013training} and dilated connections between RNN cells \cite{chang2017dilated} to deep RNNs, which we leave for future investigations, might change our previous conclusions and make deep RNNs more beneficial compared to shallow RNNs.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+%%%%%%%%%%%%%%%%%% RESULTS %%%%%%%%%%%%%%%%%%
+\section{Conclusions and outlook}
+We have introduced recurrent neural network wave functions, a novel variational ansatz for quantum many-body systems, which we use to approximate ground state energies, correlation functions, and entanglement of many-body Hamiltonians of interest to condensed matter physics.
+We find that RNN wave functions are competitive with state-of-the-art methods such as DMRG and PixelCNN wave functions~\cite{sharir2019deep}, performing particularly well on the task of finding the ground state of the transverse-field Ising model in two dimensions. By increasing the number of memory of units in the RNN, the error in our results can be systematically reduced. 
+We have shown furthermore that we can accurately model ground states endowed with a sign structure using a complex recurrent neural network (cRNN) wave function ansatz. Here, accuracy can be improved by introducing an ansatz sign structure and by enforcing symmetries such as $U(1)$ symmetry. 
+The autoregressive nature of RNN wave functions makes it possible 
+to directly generate independent samples, in contrast to methods based on Markov chain sampling, which are often plagued by long autocorrelation times that affect the optimization and
+the accurate estimation of correlation functions in a variational ansatz. 
+Thanks to weight sharing among lattice sites, RNN wave functions provide very compact yet expressive representations of quantum states, while retaining the ability to easily train with millions of variational parameters, as opposed to, e.g., restricted Boltzmann machines~\cite{carleo2017}.
+We expect that future work incorporating additional numerical techniques such as attention \cite{bahdanau2014neural,Transformer} and higher order optimization \cite{becca2017,martens2018kronecker} will make RNN wave functions a highly competitive tool for simulating quantum many-body systems, with applications to material science, quantum chemistry~\cite{choo2019fermionic}, quantum computation~\cite{carrasquilla2019probabilistic}, and beyond.
+
+{\it Note added}. A complementary paper on recurrent neural network wave functions~\cite{roth2020iterative} appeared after the publication of this manuscript.
+
+%%%%%%%%%%%%%%%%%% Open-Source Code %%%%%%%%%%%%%%%%%%
+
+\section*{Open-Source Code}
+Our code is made publicly available at ``\url{http://github.com/mhibatallah/RNNwavefunctions}''. The hyperparameters we use are given in App.~\ref{sec:hyperparams}.
+
+%%%%%%%%%%%%%%%%%% ACKNOWLEDGMENTS %%%%%%%%%%%%%%%%%%
+
+\section*{Acknowledgments}
+
+We acknowledge Di Luo for his generous comments which were extremely helpful. We also thank Estelle Inack, Dan Sehayek, Amine Natik, Matthew Beach, Bohdan Kulchytskyy, Florian Hopfmueller, Roeland Wiersema, Giuseppe Carleo and Noam Wies for useful discussions and insights. M.H. acknowledges support of the Ecole Normale Superieure de Lyon. M.G. acknowledges support by the Simons Foundation 
+(Many Electron Collaboration). 
+R.G.M. acknowledges support from the Natural Sciences and Engineering Research Council of Canada (NSERC), a Canada Research Chair, the Shared Hierarchical Academic Research Computing Network (SHARCNET) and Compute Canada.
+J.C. acknowledges support from NSERC, SHARCNET, Compute Canada, and the 
+Canadian institute for advanced research (CIFAR) AI chair program. Computer simulations were also made possible 
+thanks to the Vector Institute computing cluster and Google Colaboratory.
+This research was supported in part by the National Science Foundation 
+under Grant No. NSF PHY-1748958. It was also supported in part by the Perimeter Institute for Theoretical Physics. Research at Perimeter Institute is supported in part by the Government of Canada through Innovation, Science and Economic Development Canada (ISED) and by the Province of Ontario through the Ministry of Economic Development, Job Creation and Trade.
+
+
+
+%%%%%%%%%%%%%%%%%% APPENDICES %%%%%%%%%%%%%%%%%%
+\appendix 
+
+\section{Gated Recurrent Neural Networks}
+\label{sec:GRU}
+
+We use the GRU model introduced in Ref.~[\onlinecite{cho-etal-2014-properties}], which
+processes the spin configurations $\bm{\sigma}$ as
+\begin{align}
+\label{eq:GRU}
+\boldsymbol{u}_n &=\textrm{sig}\left( W_u\left[ \boldsymbol{h}_{n-1};\boldsymbol{\sigma}_{n-1}\right] + \bm{b}_u\right),  \\
+\nonumber
+\boldsymbol{r}_n &=\textrm{sig}\left(  W_r\left[ \boldsymbol{h}_{n-1};\boldsymbol{\sigma}_{n-1}\right] + \bm{b}_r\right),  \\ \nonumber
+\boldsymbol{\tilde{h}}_n &= \tanh\left( W_c  \left[\boldsymbol{r}_n \odot \boldsymbol{h}_{n-1};\boldsymbol{\sigma}_{n-1} \right] + \bm{b}_c\right),\\ \nonumber
+\boldsymbol{h}_{n} & = (1-\boldsymbol{u}_n)\odot\boldsymbol{h}_{n-1} + \boldsymbol{u}_n \odot \boldsymbol{\tilde{h}}_n,
+\end{align}
+where sig and tanh represent the sigmoid and hyperbolic tangent activation functions, respectively.
+Thus, the hidden vector $\boldsymbol{h}_{n}$ is updated through an interpolation between the previous
+hidden state $\boldsymbol{h}_{n-1}$ and a candidate hidden state $\boldsymbol{\tilde{h}}_n$. 
+The update gate $\boldsymbol{u}_n$ decides to what extent
+the contents of the hidden state are modified, and depends on how relevant the
+input $\bm{\sigma}_{n-1}$ is to the prediction (Softmax layer).
+The symbol $\odot$ denotes the pointwise (Hadamard) product.
+The reset gate modeled by the vector $\boldsymbol{r}_n$ is such
+that if the $i$-th component $\boldsymbol{r}_n$ is close to zero,
+it cancels out the $i$-th component of the hidden vector state $\bm{h}_{n-1}$, effectively making the GRU ``forget'' part of the sequence that has
+already been encoded in the state vector $\boldsymbol{h}_{n-1}$. 
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=0.8\linewidth]{RNN_GRU.pdf}
+\caption{
+Graphical representation of the gated recurrent unit cell described in Eq.~\eqref{eq:GRU}. The magenta circles/ellipses represent point wise operations such as vector addition or multiplication. The blue rectangles represent neural network layers labeled by the non-linearity we use. Merging lines denote vector concatenation and forking lines denote a copy operation. 
+The sigmoid activation function is represented by $\sigma$.}
+\label{fig:GRU_RNN}
+\end{figure}
+
+The weights matrices $W_{u,r,c}$ and the bias vectors $\bm{b}_{u,r,c}$ parametrize the
+GRU and are optimized using energy minimization as described in App.~\ref{sec:VMC}.
+The GRU transformations in Eq.~\eqref{eq:GRU} are depicted graphically in Fig.~\ref{fig:GRU_RNN}.
+
+To take advantage of the GPU speed up, we use instead the cuDNN variant of GRUs implemented in Tensorflow~\cite{tensorflow2015-whitepaper}, with
+\begin{align}
+\label{eq:GRU1}
+\boldsymbol{u}_n &=\textrm{sig}\left( W_u\left[ \boldsymbol{h}_{n-1};\boldsymbol{\sigma}_{n-1}\right] + \bm{b}_u\right),  \\
+\nonumber
+\boldsymbol{r}_n &=\textrm{sig}\left(  W_r\left[ \boldsymbol{h}_{n-1};\boldsymbol{\sigma}_{n-1}\right] + \bm{b}_r\right),  \\ \nonumber
+\boldsymbol{h'}_{n} &= W_c^{(1)} \boldsymbol{h}_{n-1} + \bm{b}_c^{(1)}, \\ \nonumber
+\boldsymbol{\tilde{h}}_n &= \tanh\left( W_c^{(2)}  \boldsymbol{\sigma}_{n-1} + \boldsymbol{r}_n \odot \boldsymbol{h'}_{n} + \bm{b}_c^{(2)}\right), \\ \nonumber
+\boldsymbol{h}_{n} & = (1-\boldsymbol{u}_n)\odot\boldsymbol{h}_{n-1} + \boldsymbol{u}_n \odot \boldsymbol{\tilde{h}}_n,
+\end{align}
+which differs slightly from the above implementation of traditional GRU cells~\cite{appleyard2016optimizing}.
+
+Provided that the dimensions of the hidden state $\bm{h}_{n-1}$ and input $\bm{\sigma}_{n-1}$ are $d_h$ and $d_v$ (respectively), then the dimensions of the variational parameters of a GRU as in Eq.~\eqref{eq:GRU1} are
+\begin{itemize}
+    \item ${\rm dim} (W_{u,r}) =  d_h \times (d_h +d_v)$,
+    \item ${\rm dim} (\bm{b}_{u,r}) = d_h$,
+    \item ${\rm dim} (W_{c}^{(1)}) = d_h \times d_h$,
+    \item ${\rm dim} (W_{c}^{(2)}) = d_h \times d_v $,
+    \item ${\rm dim} (\bm{b}_c^{(1,2)}) = d_h$.
+\end{itemize}
+The new hidden state $\bm{h}_n$ is fed into a Softmax layer to infer conditional probabilities, such that
+\begin{equation*}
+\bm{y^}{(1)}_n = {\rm Softmax}(U^{(1)} \bm{h}_n + \bm{c}^{(1)}),
+\end{equation*}
+and also into a Softsign layer to infer the phases as
+\begin{equation*}
+\bm{y}^{(2)}_n = \pi \ {\rm Softsign}(U^{(2)} \bm{h}_n + \bm{c}^{(2)}).
+\end{equation*}
+We require the outputs $\bm{y^}{(1,2)}_n$ to have dimension $d_v$, so that each element of $\bm{y^}{(1)}_n$ represents the conditional probability of sampling a value for the next spin $\sigma_n \in \{0,1, \ldots, d_v-1\}$, and that each element of $\bm{y^}{(2)}_n$ corresponds to the phase of the chosen spin $\sigma_n$. Thus, the dimension of the parameters introduced in the Softmax/Softsign layer are
+\begin{itemize}
+    \item ${\rm dim} (U^{(1,2)}) = d_v \times d_h$,
+    \item ${\rm dim} (\bm{c}^{(1,2)}) = d_v$.
+\end{itemize}
+The same reasoning can be also applied to determine the dimensions of the variational parameters of 2D vanilla RNNs presented in App.~\ref{sec:2DRNN}.
+
+% ////////////////////////////////////////
+
+\section{Two-dimensional Recurrent Neural Network wave functions}
+\label{sec:2DRNN}
+
+Standard RNN architectures are inherently one dimensional. However, most interesting quantum many-body systems live in higher dimensions. By taking inspiration from Refs.~[\onlinecite{graves2012supervised}] and [\onlinecite{oord2016pixel}], we generalize one dimensional RNNs to multidimensional RNN wave functions. In particular, we generalize to 2D vanilla RNNs that are more suitable to simulating two-dimensional square lattices than one-dimensional RNNs, which map two-dimensional lattice configurations to one-dimensional configurations and do not necessarily encode spatial information about neighboring sites in a plausible manner. 
+
+The main idea behind the implementation of 2D RNNs~\cite{graves2012supervised} is to replace the single hidden state that is passed from one site to another by two hidden states, with each one corresponding to the state of a neighboring site (vertical and horizontal) and hence respecting the 2D geometry of the problem. To do so, we change the one-dimensional recursion relation in \Eq{eq:rnn_action} to the two-dimensional recursion relation
+\begin{equation}
+    \bm{h}_{i,j} = f\!\left(W^{(h)} 
+    [\bm{h}_{i-1,j} ; \bm{\sigma}_{i-1,j}] + W^{(v)} 
+    [\bm{h}_{i,j-1} ; \bm{\sigma}_{i,j-1}] + \bm{b}\right),
+    \label{eq:2drnn_action}
+\end{equation}
+where $\bm{h}_{i,j}$ is the hidden state at site $(i,j)$, $W^{(v,h)}$ are weight matrices and $\bm{b}$ is a bias. Here $f$ is a non-linear activation function chosen to be equal to the exponential linear unit (ELU) defined as
+\begin{equation*}
+    \text{ELU}(x) = \begin{cases}
+		  x, & \text{if } x \geq 0\,,  \\
+		\exp(x)-1, & \text{if } x < 0 \,.
+	\end{cases}
+\end{equation*}
+The cost of computing a new hidden state $\bm{h}_{i,j}$ is quadratic in the size of the hidden state (number of memory units $d_h$), and the cost of computing the gradients with respect to the variational parameters of the 2D RNN remains unchanged. This property allows us to train 2D RNNs with a relatively large $d_h$.
+
+To initialize the 2D RNN, we choose $\bm{h}_{i,0}, \bm{\sigma}_{i,0}$ and $\bm{h}_{0,j}, \bm{\sigma}_{0,j}$ to be null vectors. Once $\bm{h}_{i,j}$ is computed, we apply the same scheme as in Sec.~\ref{sec:RWF} to sample a spin $\sigma_{i,j}$. The scheme for computing positive or complex amplitudes from Sec.~\ref{sec:RWF} remains the same.
+
+We note that generalization to higher dimensions, to other lattices, as well as to other types of RNN architectures can be done by taking inspiration from this scheme. For instance, using LSTMs~\cite{hochreiter1997long}, GRUs \cite{cho-etal-2014-properties} or Transformers \cite{Transformer} instead of vanilla RNNs in two dimensions is expected to make a significant improvement. We also expect that using multiplicative interactions \cite{wu2016multiplicative} might increase the expressiveness of 2D RNNs as compared to the additive interactions in \Eq{eq:2drnn_action}.
+
+% ////////////////////////////////////////
+
+\section{Variational Monte Carlo and Variance Reduction}
+\label{sec:VMC}
+The main goal of variational Monte Carlo (VMC) is to iteratively optimize an ansatz wave function to approximate, e.g., ground states of local Hamiltonians. 
+VMC starts from a suitable {\it trial wave function} $\ket{\Psi_\lambda}$ that
+incorporates the variational degrees of freedom of the approach.
+$\ket{\Psi_\lambda}$ could be, for example, an MPS wave function \cite{sandvik_variational_2007}
+in which case the free parameters are the MPS matrices.
+Crucially, the ansatz $\ket{\Psi_\lambda}$ has to allow for {\it efficient sampling} from the square of the amplitudes
+of $\ket{\Psi_\lambda}$. In this paper, we choose RNN wave functions, described in Sec.~\ref{sec:RWF}, to parametrize 
+%a family of
+the trial wave function $\ket{\Psi_\lambda}$ for a VMC optimization of ground states.
+
+The aim of the VMC optimization is to minimize the expectation value of the
+energy
+\begin{align}
+  E \equiv \frac{\braket{\Psi_\lambda|\hat{H}|\Psi_\lambda}}{\braket{\Psi_\lambda|\Psi_\lambda}}\label{eq:energy}
+\end{align}
+when given a family of states $\ket{\Psi_\lambda}$. 
+This minimization is carried out using the gradient descent method or any of its variants.
+Since the RNN wave function is normalized such that $\braket{\Psi_\lambda|\Psi_\lambda}=1$, the expectation value in
+\Eq{eq:energy} can be written as
+\begin{align}
+  E = \braket{\Psi_\lambda |H|\Psi_\lambda}
+  &=\sum_{\bm{\sigma}} |\psi_\lambda(\bm{\sigma})|^2\sum_{\bm{\sigma'}} H_{\bm{\sigma\sigma'}}\frac{\psi_\lambda(\bm{\sigma'})}{\psi_\lambda(\bm{\sigma})} \nonumber \\
+  &\equiv \sum_{\bm{\sigma}} |\psi_\lambda(\bm{\sigma})|^2E_{loc}(\bm{\sigma}) \nonumber \\
+   &\approx \frac{1}{N_S}\sum_{\bm{\sigma} \sim |\psi_\lambda(\bm{\sigma})|^2} E_{loc}(\bm{\sigma}),
+  \label{eq:expectation_value} 
+\end{align}
+which represents a sample average of the local energy $E_{loc}(\bm{\sigma})$. The latter can be calculated efficiently for local Hamiltonians. Denoting $\lambda_i$ to be the real variational parameters of $\ket{\Psi_\lambda}$, the gradients $\partial_{\lambda_i}E$ can be similarly written as
+\begin{align}
+  \partial_{\lambda_i} E =
+  \sum_{\bm{\sigma}} |\psi_\lambda(\bm{\sigma})|^2\frac{\partial_{\lambda_i}\psi^{*}_\lambda(\bm{\sigma})}{\psi^{*}_\lambda(\bm{\sigma})} E_{loc}(\bm{\sigma})  + \text{c.c}.
+  \label{eq:gradient}
+\end{align}
+An optimization step consists of drawing $N_S$ samples $\{ \bm{\sigma^{(1)}}, \bm{\sigma^{(2)}}, \ldots, \bm{\sigma^{(N_S)}}\}$ from $|\psi_\lambda(\bm{\sigma})|^2$ autoregressively using the RNN wave function, and then
+computing $\partial_{\lambda_i} E$ from \Eq{eq:gradient} as 
+\begin{align}
+\partial_{\lambda_i} E \approx
+\frac{2}{N_S} \mathfrak{Re} \left ( \sum_{i=1}^{N_S}  \frac{\partial_{\lambda_i}\psi^{*}_\lambda(\bm{\sigma^{(i)}})}{\psi^{*}_\lambda(\bm{\sigma^{(i)}})} E_{loc}(\bm{\sigma^{(i)}}) \right),
+\label{eq:stochastic_gradient1}
+\end{align}
+using automatic differentiation \cite{zhang2019automatic} and updating the parameters (if using gradient descent) according to
+\begin{align}
+  \lambda_i \leftarrow \lambda_i - \alpha \partial_{\lambda_i}E
+  \label{eq:gradient_descent}
+\end{align}
+with a small learning rate $\alpha$. Instead of this simple gradient descent rule, we use the Adam optimizer \cite{kingma2014adam} to implement the gradient updates. We found that the latter gives better results compared to the simple gradient descent optimization shown in~\Eq{eq:gradient_descent} and without having to carefully tune the learning rate $\alpha$.
+
+We note that the stochastic evaluation of the gradients in Eq.~\eqref{eq:stochastic_gradient1} tends to carry noise that increases their variances~\cite{Assaraf_1999,Clark2010}. Such high variances tend to slow down the convergence to the ground state energy. We propose to cure this limitation by introducing a new term in Eq.~\eqref{eq:stochastic_gradient1} that helps reduce the variance of the gradients by approximating
+\begin{align}
+\partial_{\lambda_i} E &\approx
+\frac{2}{N_S} \mathfrak{Re} \left ( \sum_{i=1}^{N_S}  \frac{\partial_{\lambda_i}\psi^{*}_\lambda(\bm{\sigma^{(i)}})}{\psi^{*}_\lambda(\bm{\sigma^{(i)}})} \left ( E_{loc}(\bm{\sigma^{(i)}}) - E \right ) \right) \nonumber\\
+ &=
+\frac{2}{N_S} \mathfrak{Re} \left ( \sum_{i=1}^{N_S} \partial_{\lambda_i} \log \psi^{*}_\lambda(\bm{\sigma^{(i)}}) \left ( E_{loc}(\bm{\sigma^{(i)}}) - E \right ) \right),
+\label{eq:stochastic_gradient2}
+\end{align}
+and we show below that this approximation does not introduce a bias.
+This new term is useful for reducing the uncertainty in the gradient estimation, as in the limit where $E_{loc}(\bm{\sigma^{(i)}}) \approx E$ near convergence, the variance of the gradients $\partial_{\lambda_i} E$ goes to zero as opposed to the nonzero variance of the gradients in Eq.~\eqref{eq:stochastic_gradient1}. As a consequence, a stable convergence to the ground state is achieved as confirmed by our experiments. This idea is similar in spirit to control variate methods in Monte Carlo \cite{Assaraf_1999} and to baseline methods in reinforcement learning~\cite{mohamed2019monte}.
+
+To show that the term we add in \Eq{eq:stochastic_gradient2} does not bias the true gradients in \Eq{eq:gradient}, it suffices to prove that
+\begin{equation}
+    \mathfrak{Re} \left(\left\langle \partial_{\lambda_i} \log \left( \psi^{*}_\lambda(\bm{\sigma}) \right) \right\rangle E \right) = 0,
+    \label{eq:baseline2}
+\end{equation}
+where $\langle ... \rangle$ denotes the statistical average over the probability distribution $\lvert \psi_\lambda |^2$. 
+To prove this expression, we write $\psi_\lambda(\bm{\sigma}) =  \sqrt{P_\lambda(\bm{\sigma})} \exp({\text i} \phi_\lambda(\bm{\sigma}))$, which implies that
+\begin{equation*}
+    \log \left(\psi^{*}_\lambda(\bm{\sigma}) \right) =  \frac12 \log \left( P_\lambda (\bm{\sigma}) \right) - {\text i} \phi_\lambda(\bm{\sigma}),
+\end{equation*}
+and hence
+\begin{align}
+     \mathfrak{Re} &\left (\left\langle \partial_{\lambda_i} \log \left( \psi^{*}_\lambda(\bm{\sigma}) \right) \right\rangle E \right) = \nonumber \\
+     &\frac12 \left\langle \partial_{\lambda_i} \log \left( P_\lambda(\bm{\sigma}) \right) \right\rangle \mathfrak{Re}(E) + \left\langle \partial_{\lambda_i} \phi_\lambda(\bm{\sigma}) \right\rangle \mathfrak{Im}(E).
+     \label{eq:baseline}
+\end{align}
+To show that $\left\langle \partial_{\lambda_i} \log \left( P_\lambda(\bm{\sigma}) \right) \right\rangle = 0$~\cite{sutton2000policy,mohamed2019monte}, we write
+\begin{align*}
+      \left\langle \partial_{\lambda_i} \log \left( P_\lambda(\bm{\sigma}) \right) \right\rangle &= \sum_{\bm{\sigma}} P_\lambda(\bm{\sigma}) ~ \partial_{\lambda_i} \log \left( P_\lambda(\bm{\sigma}) \right), \\
+       &= \sum_{\bm{\sigma}} P_\lambda(\bm{\sigma}) \frac{\partial_{\lambda_i} P_\lambda(\bm{\sigma})}{P_\lambda(\bm{\sigma})},\\
+       &= \partial_{\lambda_i} \sum_{\bm{\sigma}} P_\lambda(\bm{\sigma}), \\
+       &= \partial_{\lambda_i} 1 = 0,
+\end{align*}
+where the fact that the RNN wave function is normalized justifies the  transition from the third line to the fourth line. 
+
+From here, it suffices to show that $\left\langle \partial_{\lambda_i} \phi_\lambda(\bm{\sigma}) \right\rangle \mathfrak{Im}(E) = 0$. Since the Hamiltonian $\hat{H}$ is Hermitian, the expectation value $E$ is real and hence $\mathfrak{Im}(E) = 0$.
+We therefore arrive at \Eq{eq:baseline2}.
+
+
+% ///////////////////////////////////////////
+\section{Implementing Symmetries}
+\label{sec:symmetries}
+\subsection{Imposing discrete symmetries}
+\label{sec:discrete_symmetries}
+
+Inspired by Refs.~[\onlinecite{Wu_2019}] and [\onlinecite{sharir2019deep}], we propose to implement discrete symmetries in a similar fashion for RNN wave functions without spoiling their autoregressive nature.
+
+Assuming that a Hamiltonian $\hat{H}$ has a symmetry under discrete transformations $\mathcal{T}$, its ground state
+\begin{equation*}
+    \ket{\Psi_G} = \sum_{\bm{\sigma}}\psi_G(\bm{\sigma})\ket{\bm{\sigma}}
+\end{equation*}
+is an eigenvector of the symmetry transformation $\mathcal{T}$. The ground state transforms as $\psi_G(\mathcal{T}\bm{\sigma}) = \omega_\mathcal{T} \psi_G(\bm{\sigma})$ where $\omega_\mathcal{T}$ is an eigenvalue with module 1, that is independent of the choice of $\bm{\sigma}$. This expression implies that the transformation $\mathcal{T}$ changes the ground state with only a global phase term that does not affect the probability distribution, and changes the sign structure with a global phase term. 
+It is thus desirable that the RNN wave function also has this symmetry.
+
+To enforce a discrete symmetry $\{\mathcal{T}\}$ on an RNN wave function $\ket{\Psi_\lambda}$, we propose the following scheme:
+\begin{itemize}
+    \item Generate a sample $\bm{\sigma}$ autoregressively from the RNN wave function.
+    \item Sample with a probability $1/\text{Card}(G)$ a transformation $\mathcal{T}$ from the symmetry transformation group $G = \{\mathds{1},\mathcal{T}_1,...\}$ that leaves the Hamiltonian $\hat{H}$ invariant, and apply the transformation $\mathcal{T}$ to $\bm{\sigma}$.
+    \item Assign to the spin configuration $\bm{\tilde{\sigma}} = \mathcal{T}\bm{\sigma}$ the amplitude $\psi_\lambda(\bm{\tilde{\sigma}}) = \sqrt{P_\lambda(\bm{\tilde{\sigma}})} \exp(i \phi_\lambda(\bm{\tilde{\sigma}}))$, such that
+    \begin{align*}
+        P_\lambda(\bm{\tilde{\sigma}}) &= \frac{1}{\text{Card(G)}} \left ( \sum_{\mathcal{\tilde{T}} \in G} P_\lambda\left(\mathcal{\tilde{T}}\bm{\sigma}\right) \right ), \\
+        \phi_\lambda(\bm{\tilde{\sigma}}) &= \text{Arg} \left (\omega_\mathcal{T} \sum_{\mathcal{\tilde{T}} \in G} \exp\left(\text{i} \phi_\lambda\left(\mathcal{\tilde{T}}\bm{\sigma}\right)\right) \right ) ,
+    \end{align*}
+    where $P_\lambda(\mathcal{\tilde{T}}\bm{\sigma})$ is a probability generated by the Softmax layer and $\phi_\lambda(\mathcal{\tilde{T}}\bm{\sigma})$ is a phase generated by the Softsign layer, as explained in Sec. \ref{sec:RWF}. 
+\end{itemize}
+If the ground state is positive~\cite{Bravyi:2008:CSL:2011772.2011773}, we use the same algorithm but only symmetrize the probability $P_\lambda$, without having to worry about symmetrizing the phase $\phi_\lambda$. 
+
+For concreteness, we illustrate the algorithm above with ``Symmetric RNNs'' that have a built-in parity symmetry. We use this architecture in Sec.~\ref{sec:1DTFIMresults} to get a more accurate estimate of the ground state of the 1D TFIM that also obeys a parity symmetry. Indeed, symmetric RNNs show an improvement over ordinary pRNN wave functions on the task of estimating the second Rényi entropy (see App.~\ref{sec:entropy}). Symmetric RNNs can be implemented using the following procedure: 
+\begin{itemize}
+    \item Sample each configuration $\bm{\sigma}$.
+    \item Choose to apply or to not apply the parity transformation $\hat{\mathcal{P}}$ on $\bm{\sigma}$ with a probability $1/2$.
+    \item Assign to $\bm{\sigma}$ the probability: 
+    \begin{equation*}
+        P = \frac{\left(P_{\lambda}\left(\bm{\sigma}\right)+P_{\lambda}\left(\hat{\mathcal{P}}\bm{\sigma}\right)\right)}{2}.
+    \end{equation*}
+\end{itemize}
+We also emphasize the possibility of carefully designing RNN wave functions to impose discrete symmetries, without using the symmetrization scheme above and which we leave for future investigations.
+
+\subsection{Imposing zero magnetization}
+\label{sec:zeromag}
+
+Since the ground state of the $J_1$-$J_2$ model has zero magnetization, i.e., a $U(1)$ symmetry~\cite{Marshall1955, Lieb1962}, it is helpful to enforce this constraint on our RNN wave functions to get accurate estimations of the ground state energy.
+To do so, we propose an efficient way to generate samples with zero magnetization while maintaining the autoregressive property of the RNN wave function. The procedure effectively applies a projector  $\mathcal{P}_{S_z=0}$ to the original state, which restricts the RNN wave function
+to the subspace of configurations with zero magnetization. This procedure avoids generating a large number of samples and discarding the ones that have non-zero magnetization. 
+
+The condition of zero magnetization implies that the number of up spins should be equal to the number of down spins. To satisfy this constraint, we utilize the following algorithm:
+\begin{itemize}
+    \item Sample autoregressively the first half of the spin configuration $(\sigma_1,\sigma_2,..., \sigma_{N/2})$
+    \item At each step $i>N/2$:
+    \begin{itemize}
+        \item Generate the output of the RNN wave function: $\bm{y}_i = (\psi_i^{\text{down}}, \psi_i^{\text{up}})$ where $\psi_i^{\text{down}}$ and $\psi_i^{\text{up}}$ are both non-zero and their modules squared sum to $1$.
+        \item Define the following amplitudes:
+        \begin{align*}
+            a_i &=  \psi_i^{\text{down}} \times \Xi\left(\frac{N}{2} - N_{\text{down}}(i)\right), \\
+            b_i &=  \psi_i^{\text{up}} \times \Xi\left(\frac{N}{2} - N_{\text{up}}(i)\right),
+        \end{align*} 
+        where
+        \begin{equation*}
+                \Xi(x) \equiv \begin{cases}
+                		  1, & \text{if } x > 0\,,  \\
+                		0, & \text{if } x \leq 0 \,,
+                \end{cases}
+        \end{equation*}
+        and 
+        \begin{align*}
+            \qquad \qquad N_{\text{down}}(i) &= \text{Card}\left(\{ j \ / \sigma_j = 0 \  \text{and} \ j<i \}\right) , \\ 
+            \qquad \qquad N_{\text{up}}(i) \quad &= \text{Card}\left(\{  j \ /  \sigma_j = 1 \  \text{and} \ j<i \}\right).
+        \end{align*}
+        In words, $N_{\text{up}}(i)/N_{\text{down}}(i)$ is the number of up/down spins generated before step $i$.
+        \item Sample $\sigma_i$ from $|\bm{\tilde{y}}_i|^2$, where:
+        \begin{equation*}
+            \bm{\tilde{y}}_i = \frac{1}{{\sqrt{a_i^2+b_i^2}}}(a_i,b_i)
+        \end{equation*}
+        which is normalized, i.e. $\lvert \lvert \bm{\tilde{y}}_i\rvert \rvert_2 = 1$.
+    \end{itemize}
+\end{itemize}
+Using this algorithm, it is clear that the RNN wave function generates a spin configuration that has the same number of up spins and down spins, and hence a zero magnetization. In fact, at each step $i>N/2$, the function $\Xi$ assigns a zero amplitude for the next spin $\sigma_i$ to be spin up if $N_{\text{up}}(i) = N/2$ or to be spin down if $N_{\text{down}}(i) = N/2$. 
+
+Interestingly enough, our scheme does not spoil the normalization of the RNN wave function as the new conditional probabilities $|\bm{\tilde{y}}_i|^2$ are also normalized. We also note that this algorithm preserves the autoregressive property of the original RNN wave function and can also be parallelized. Moreover, this scheme can be easily extended to the generation of samples with a non-zero fixed magnetization, which is useful when considering the problem of finding states that live in a non-zero fixed magnetization sector.
+
+% ///////////////////////////////////////////
+\section{R\'enyi entropies}
+\label{sec:entropy}
+Given a quantum system with a spatial bipartition $(A,B)$, one can write the RNN wave function $\ket{\Psi_\lambda}$ as
+\begin{equation*}
+    \ket{\Psi_\lambda} = \sum_{\bm{\sigma}_{A}, \bm{\sigma}_{B}}  \psi_\lambda(\bm{\sigma}_{A}\bm{\sigma}_{B}) \, \ket{\bm{\sigma}_{A} \bm{\sigma}_{B}},
+\end{equation*}
+where $\bm{\sigma}_{A/B}$ denotes the spin configuration that lives in the partition $A/B$ and $\bm{\sigma}_A \bm{\sigma}_B$ stands for a concatenation of $\bm{\sigma}_A$ and $\bm{\sigma}_B$.
+
+The $\alpha$-R\'enyi entropy between region $A$ and $B$ is given by
+\begin{equation}
+    S_\alpha (A) = \frac{1}{1-\alpha} \log \left ( \text{Tr} \rho_A^\alpha \right ),
+\end{equation}
+where $\rho_A = \text{Tr}_B \ket{\Psi_\lambda}\bra{\Psi_\lambda}$ and $\alpha$ is an integer~\cite{hastings2010measuring}. To estimate these entropies, we use the so-called replica trick~\cite{hastings2010measuring}, where we consider the action of the $\text{Swap}_A$ operator on the two copies of the RNN wave function, which swaps the spins in the region $A$ between the two copies (as demonstrated in Fig.~\ref{fig:Replica}) such that
+\begin{align}
+  &\text{Swap}_A \ket{\Psi_\lambda} \otimes \ket{\Psi_\lambda} \nonumber \\
+  &= \sum_{\bm{\sigma}, \, \bm{\tilde{\sigma}}}
+     \psi_\lambda(\bm{\sigma}_A \bm{\sigma}_B) \psi_\lambda(\bm{\tilde{\sigma}}_A \bm{\tilde{\sigma}}_B) \ket{\bm{\tilde{\sigma}}_A \bm{\sigma}_B} \otimes \ket{\bm{\sigma}_A \bm{\tilde{\sigma}}_B}.
+\end{align}
+The expectation value of $\text{Swap}_A$ in the double copy of the RNN wave function ``$\ket{\Psi_\lambda} \otimes \ket{\Psi_\lambda}$'' is given by \cite{hastings2010measuring,torlai2018}
+\begin{align}
+  \langle \text{Swap}_A \rangle &= \sum_{\bm{\sigma}, \, \bm{\tilde{\sigma}}}
+     \psi_\lambda^{*}(\bm{\sigma}_A \bm{\sigma}_B) \psi_\lambda^{*}(\bm{\tilde{\sigma}}_A \bm{\tilde{\sigma}}_B) \psi_\lambda(\bm{\tilde{\sigma}}_A \bm{\sigma}_B) \psi_\lambda(\bm{\sigma}_A \bm{\tilde{\sigma}}_B)
+     \nonumber \\
+     &= \text{Tr} \rho^2_A = \exp (-S_2(A)).
+     \label{eq:exp_renyi}
+\end{align}
+Hence, by calculating the expectation of the value of the Swap operator in the double copy of the RNN wave function, we can access the second R\'enyi entropy. Interestingly, the R\'enyi entropies $S_\alpha$ have been shown to encode similar properties independently of $\alpha$~\cite{hastings2010measuring, Alioscia2009}. 
+
+\begin{figure}
+    \centering
+    \includegraphics[width = 0.9\linewidth]{Replica.pdf}
+    \caption{The Swap operator acting on the tensor product of two samples \bm{$\sigma$} and \bm{$\sigma'$}.}
+    \label{fig:Replica}
+\end{figure}
+
+Although an exact evaluation of Eq.~\eqref{eq:exp_renyi} is numerically intractable, we can use importance sampling to estimate it \cite{hastings2010measuring} as
+\begin{align}
+    &\langle \text{Swap}_A \rangle 
+    \nonumber \\
+    &= \sum_{\bm{\sigma}, \, \bm{\tilde{\sigma}}}
+     |\psi_\lambda(\bm{\sigma}_A \bm{\sigma}_B)|^2 | \psi_\lambda
+     (\bm{\tilde{\sigma}}_A \bm{\tilde{\sigma}}_B)|^2 \frac{\psi_\lambda(\bm{\tilde{\sigma}}_A \bm{\sigma}_B) \psi_\lambda(\bm{\sigma}_A \bm{\tilde{\sigma}}_B)}{\psi_\lambda(\bm{\sigma}_A \bm{\sigma}_B) \psi_\lambda
+     (\bm{\tilde{\sigma}}_A \bm{\tilde{\sigma}}_B)}, \nonumber
+     \\
+     &\approx \frac{1}{N_s} \sum_{i=1}^{N_s} \frac{\psi_\lambda(\bm{\tilde{\sigma}^{(i)}}_A \bm{\sigma^{(i)}}_B) \psi_\lambda(\bm{\sigma^{(i)}}_A \bm{\tilde{\sigma}^{(i)}}_B)}{\psi_\lambda(\bm{\sigma^{(i)}}_A \bm{\sigma^{(i)}}_B) \psi_\lambda
+     (\bm{\tilde{\sigma}^{(i)}}_A \bm{\tilde{\sigma}^{(i)}}_B)}.
+\end{align}
+Using this trick, for the system sizes studied in this paper we only have to generate two sets of exact samples $\{\bm{\sigma^{(i)}}\}_{i=1}^{N_s}$ and  $\{\bm{\tilde{\sigma}^{(i)}}\}_{i=1}^{N_s}$ independently from $\lvert \psi_\lambda \rvert^2$ without having to use the improved ratio trick~\cite{hastings2010measuring}. By defining
+\begin{equation*}
+     \text{Swap}^{(i)}_A \equiv \frac{\psi_\lambda(\bm{\tilde{\sigma}^{(i)}}_A \bm{\sigma^{(i)}}_B) \psi_\lambda(\bm{\sigma^{(i)}}_A \bm{\tilde{\sigma}^{(i)}}_B)}{\psi_\lambda(\bm{\sigma^{(i)}}_A \bm{\sigma^{(i)}}_B) \psi_\lambda
+     (\bm{\tilde{\sigma}^{(i)}}_A \bm{\tilde{\sigma}^{(i)}}_B)},
+\end{equation*}
+the statistical error on the estimation of the R\'enyi-2 entropy can be calculated as
+\begin{equation*}
+    \epsilon = \frac{1}{\langle \text{Swap}_A \rangle } \sqrt{\frac{\text{var}\left(\{\text{Swap}^{(i)}_A\} \right)}{N_s}}.
+\end{equation*}
+
+For the estimation of the R\'enyi-2 entropy for the 1D TFIM in this paper, we use $N_s = 2 \times 10^6$ samples from a trained RNN wave function with one GRU layer and $50$ memory units.
+
+During the completion of this paper, we became aware of another way to estimate entanglement entropies using autoregressive models with conditional sampling~\cite{NAQSentropy}.
+
+
+% /////////////////////////////////////////////
+\section{Tables of Results}
+\label{sec:tables_of_results}
+
+In Tab.~\ref{tab:cRNNvsDMRG}, we state the variational energies of the cRNN wave function for the 1D $J_1$-$J_2$ model and compare with results from DMRG. 
+We examine two different methods of training. 
+First, we do not impose an initial sign structure while, secondly, we introduce a background Marshall sign. 
+The results suggest that using a Marshall sign improves the results significantly for $J_2 = 0.0,0.2$ and $0.5$ (with $J_1 =1$ for all cases).
+\begin{table}[bt]
+\setlength\extrarowheight{2pt}
+\centering
+\begin{tabular}{|c|c|c|c|}\hline
+\multirow{2}{*}{$J_2$} &  \multicolumn{3}{c|}{$E/N$} \\
+\cline{2-4}
+& No Sign & Marshall Sign & DMRG \\
+%\hhline{|=|===|}
+\hline
+$0.0$ & -0.4412480(2) & -0.4412760(1) & -0.4412773 \\ 
+$0.2$ & -0.4073635(3) & -0.4073871(3) & -0.4073881 \\ 
+$0.5$  & -0.3749958(6) & -0.3750006(6) & -0.3750000  \\ 
+$0.8$  & -0.4205478(13) & -0.4205695(12) & -0.4207006  \\ \hline
+\end{tabular}
+\caption{Energy per spin values for the 1D $J_1$-$J_2$ model.
+We consider a cRNN wave function with two different methods of training (with no initial sign structure and with a background Marshall sign) and compare with results from DMRG. 
+All results correspond to $100$ spins and have $J_1=1$.
+We use three GRU layers, where each layer has $100$ units.
+Note that $J_2=0.5$ corresponds to the Majumdar-Ghosh model where the ground state is a product-state of spin singlets. For the estimation of the variational energies we use $4 \times 10^6$ samples.}
+\label{tab:cRNNvsDMRG}
+\end{table}
+
+In Tab.~\ref{tab:2DComparison}, we compare the variational energies per site of the 2D TFIM with a lattice size of $12 \times 12$ for different values of the transverse magnetic field $h$, for a 1D pRNN wave function, a 2D pRNN wave function, a PixelCNN wave function \cite{sharir2019deep} and DMRG.
+
+\begin{table*}[bt]
+\setlength\extrarowheight{2pt}
+\centering
+\begin{tabular}{|c|c|c|c|c|}\hline
+\multirow{2}{*}{$h$} &  \multicolumn{4}{c|}{$E/N$} \\
+\cline{2-5}
+& 1DRNN & 2DRNN  & PixelCNN & DMRG \\ \hline
+$2$  & -2.4096018(2) & \textbf{-2.40960262(9)} & -2.4096022(2) & \textbf{-2.40960263} \\ %\hline
+$3$  & -3.1738969(5) & \textbf{-3.1739018(2)} & -3.1739005(5) & -3.17389966 \\ %\hline
+$4$  & -4.1217969(3) & \textbf{-4.12179808(6)} & -4.1217979(2) & -4.12179793  \\ \hline
+\end{tabular}
+\caption{Variational energies per site for a 1D pRNN wave function (three layers of GRUs with 100 memory units), 2D pRNN wave function (a single layer of 2D vanilla RNN with 100 memory units), PixelCNN wave functions with results taken from Ref.~[\onlinecite{sharir2019deep}] and DMRG (with bond dimension $\chi = 512$ for $h = 2$ and $\chi = 1024$ for both $h = 3,4$). As a benchmark, we use the 2D TFIM with a lattice size of $12 \times 12$ for different values of $h$ where the critical point is at $h \approx 3$. Values in bold font correspond to the lowest variational energies and hence to the most accurate estimations of the ground state energy across all four methods. For the estimation of the variational energy of the trained 1D and 2D pRNN wave functions, we use $2 \times 10^6$ samples.}
+\label{tab:2DComparison}
+\end{table*}
+
+% ////////////////////////////////////////////
+\section{Scaling of resources (continued)}
+\label{sec:scaling_app}
+
+\Fig{fig:Scaling_study_2} shows the dependence of $\sigma^2$ on the number of samples used to estimate the gradients of the variational energy (see App.~\ref{sec:VMC}). We investigate this effect for the case of the 1D TFIM, using 50 memory units in the pRNN wave function.
+Even though a large number of samples yields higher statistical accuracy of the gradient estimates used in our optimizations, we observe only a weak dependence of $\sigma^2$ on the number of samples for all studied system sizes.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width = \columnwidth]{Samplesdebug_GRURNN_variance.pdf}
+    \caption{The energy variance per spin against the number of samples, which suggests that the energy variance saturates and does not improve further by using a larger number of samples for training.}
+    \label{fig:Scaling_study_2}
+\end{figure}
+
+In \Fig{fig:Scaling_study_3} we present results for the dependence of $\sigma^2$
+on the depth of the pRNN wave function architecture for a critical TFIM with $N=40$ sites. We 
+investigate architectures up to a depth of four layers. The number of memory units is adapted such that we have a similar number of variational parameters ($\sim$31000) for each of the four architectures. We find that $\sigma^2$ depends only weakly on the number
+of layers. 
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width = \columnwidth]{Layersdebug_GRURNN_variance.pdf}
+    \caption{Scaling study of the energy variance per spin vs the number of layers of a pRNN wave function such that all pRNN wave functions with different layers have approximately the same number of variational parameters. The results show that fixing the number of parameters while changing the number of layers does not affect the energy variance obtained by the pRNN wave function.}
+    \label{fig:Scaling_study_3}
+\end{figure}
+
+% /////////////////////////////////////////////
+% \newpage
+\section{Hyperparameters}
+\label{sec:hyperparams}
+In Tab.~\ref{tab:hyperparams}, we present the hyperparameters used to train the RNN wave functions in this paper. 
+We anticipate that further improvements such as the use of stochastic reconfiguration \cite{becca2017} or a computationally cheaper variant such as K-FAC \cite{martens2018kronecker} for the optimization could potentially lead to more accurate estimations of the ground state energies as compared to the Adam optimizer~\cite{kingma2014adam}.
+Seeds are listed in the table for reproducibility purposes.
+
+\begin{table*}[p]
+    \centering
+    \begin{tabular}{|c|c|c|}\hline
+       Figures & Hyperparameter & Value \\\hline
+        \multirow{5}{*}{Fig. \ref{fig:1d_TFIM_results}} & Architecture & One-layer 1D pRNN wave function with $50$ memory units\\
+            & Number of samples & $N_s = 1000$ ($N=20$), $N_s = 500$ ($N=80$), $N_s = 200$ ($N=1000$) \\
+             & Training iterations & $20000$  \\
+             & Learning rate & $5 \times 10^{-3}$\! \! \\
+             & Seed & $111$  \\
+       \hline
+      \multirow{5}{*}{Fig. \ref{fig:J1J2_results}} & Architecture & Three-layer 1D cRNN wave function with $100$ memory units\\
+      & Number of samples & 500 \\
+      &  Training iterations & $100000$ \\
+       & Learning rate & $(\eta^{-1} + 0.1t)^{-1}$ with $\eta = 2.5 \times 10^{-4}$ \\
+        &    Seed & $111$ \\
+       \hline
+             
+       \multirow{5}{*}{Fig. \ref{fig:2DTFIM_study}(c): 1DRNN} & Architecture & Three-layer 1D pRNN wave function with $100$ memory units \\
+       & Number of samples & $500$ \\
+              &  Training iterations & $150000$ \\
+              &  Learning rate & $(\eta^{-1} + 0.1t)^{-1}$ with $\eta = 10^{-3}$ \\
+              &  Seed & $333$ \\
+       \hline
+     \multirow{5}{*}{Fig. \ref{fig:2DTFIM_study}(c): 2DRNN} & Architecture & One-layer 2D pRNN wave function with $100$ memory units \\
+     & Number of samples & $500$ \\
+              &  Training iterations & $150000$ \\
+              &  Learning rate & $\eta(1 + t/5000)^{-1}$ with $\eta = 5 \times 10^{-3}$ \\
+              &  Seed & $111$ \\
+       \hline
+       \multirow{5}{*}{Fig. \ref{fig:Scaling_study}(a)} & Architecture & One-layer 1D pRNN wave function \\
+       & Number of samples & $500$ \\
+       & Training iterations & $10000$ \\
+       & Learning rate & $10^{-3}$ \\
+      & Seeds & $111,222,333,444,555$ \\
+        \hline
+         \multirow{5}{*}{Fig. \ref{fig:Scaling_study}(b)} & Architecture & One-layer 1D pRNN wave function \\
+         & Number of samples & $500$ \\
+        & Training iterations & $10000$ \\
+        & Learning rate & $(\eta^{-1} + 0.1t)^{-1}$ with $\eta = 10^{-3}$ \\
+        & Seeds & $111,222,333,444,555,666,777,888,999,1111$ \\
+       \hline
+       \multirow{4}{*}{Fig. \ref{fig:Scaling_study_2}} & Architecture & One-layer 1D pRNN wave function with $50$ memory units \\
+        & Training iterations & $10000$ \\
+        & Learning rate & $10^{-3}$ \\
+        & Seeds & $111,222,333,444,555$ \\
+       \hline
+        \multirow{5}{*}{Fig. \ref{fig:Scaling_study_3}} & Architecture & 1D pRNN wave function \\
+        & Number of samples & $500$ \\
+        & Training iterations & $10000$ \\
+        & Learning rate & $5\times 10^{-3}$ \\
+        & Seeds & $111,222,333,444,555$ \\
+       \hline
+       
+    \end{tabular}
+    \caption{Hyperparameters used to obtain the results reported in this paper. Note that the number of samples stands for the batch size used to train the RNN wave function. Multiple seeds are used for the scaling of resources study to provide error bars on our results.}
+    \label{tab:hyperparams}
+\end{table*}
+
+
+
+%%%%%%%%%%%%%%%%%% REFERENCES %%%%%%%%%%%%%%%%%%
+\clearpage
+%merlin.mbs apsrev4-1.bst 2010-07-25 4.21a (PWD, AO, DPC) hacked
+%Control: key (0)
+%Control: author (0) dotless jnrlst
+%Control: editor formatted (1) identically to author
+%Control: production of article title (0) allowed
+%Control: page (1) range
+%Control: year (0) verbatim
+%Control: production of eprint (0) enabled
+\begin{thebibliography}{87}%
+\makeatletter
+\providecommand \@ifxundefined [1]{%
+ \@ifx{#1\undefined}
+}%
+\providecommand \@ifnum [1]{%
+ \ifnum #1\expandafter \@firstoftwo
+ \else \expandafter \@secondoftwo
+ \fi
+}%
+\providecommand \@ifx [1]{%
+ \ifx #1\expandafter \@firstoftwo
+ \else \expandafter \@secondoftwo
+ \fi
+}%
+\providecommand \natexlab [1]{#1}%
+\providecommand \enquote  [1]{``#1''}%
+\providecommand \bibnamefont  [1]{#1}%
+\providecommand \bibfnamefont [1]{#1}%
+\providecommand \citenamefont [1]{#1}%
+\providecommand \href@noop [0]{\@secondoftwo}%
+\providecommand \href [0]{\begingroup \@sanitize@url \@href}%
+\providecommand \@href[1]{\@@startlink{#1}\@@href}%
+\providecommand \@@href[1]{\endgroup#1\@@endlink}%
+\providecommand \@sanitize@url [0]{\catcode `\\12\catcode `\$12\catcode
+  `\&12\catcode `\#12\catcode `\^12\catcode `\_12\catcode `\%12\relax}%
+\providecommand \@@startlink[1]{}%
+\providecommand \@@endlink[0]{}%
+\providecommand \url  [0]{\begingroup\@sanitize@url \@url }%
+\providecommand \@url [1]{\endgroup\@href {#1}{\urlprefix }}%
+\providecommand \urlprefix  [0]{URL }%
+\providecommand \Eprint [0]{\href }%
+\providecommand \doibase [0]{http://dx.doi.org/}%
+\providecommand \selectlanguage [0]{\@gobble}%
+\providecommand \bibinfo  [0]{\@secondoftwo}%
+\providecommand \bibfield  [0]{\@secondoftwo}%
+\providecommand \translation [1]{[#1]}%
+\providecommand \BibitemOpen [0]{}%
+\providecommand \bibitemStop [0]{}%
+\providecommand \bibitemNoStop [0]{.\EOS\space}%
+\providecommand \EOS [0]{\spacefactor3000\relax}%
+\providecommand \BibitemShut  [1]{\csname bibitem#1\endcsname}%
+\let\auto@bib@innerbib\@empty
+%</preamble>
+\bibitem [{\citenamefont {Krizhevsky}\ \emph {et~al.}(2012)\citenamefont
+  {Krizhevsky}, \citenamefont {Sutskever},\ and\ \citenamefont
+  {Hinton}}]{hinton2012}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Alex}\ \bibnamefont
+  {Krizhevsky}}, \bibinfo {author} {\bibfnamefont {Ilya}\ \bibnamefont
+  {Sutskever}}, \ and\ \bibinfo {author} {\bibfnamefont {Geoffrey~E.}\
+  \bibnamefont {Hinton}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Imagenet classification with deep convolutional neural networks},}\ }in\
+  \href
+  {https://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf}
+  {\emph {\bibinfo {booktitle} {Proceedings of the 25th International
+  Conference on Neural Information Processing Systems - Volume 1}}},\ \bibinfo
+  {series and number} {NIPS’12}\ (\bibinfo  {publisher} {Curran Associates
+  Inc.},\ \bibinfo {address} {Red Hook, NY, USA},\ \bibinfo {year} {2012})\ p.\
+  \bibinfo {pages} {1097–1105}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {LeCun}\ \emph {et~al.}(2015)\citenamefont {LeCun},
+  \citenamefont {Bengio},\ and\ \citenamefont {Hinton}}]{LeCun2015}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Yann}\ \bibnamefont
+  {LeCun}}, \bibinfo {author} {\bibfnamefont {Yoshua}\ \bibnamefont {Bengio}},
+  \ and\ \bibinfo {author} {\bibfnamefont {Geoffrey}\ \bibnamefont {Hinton}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {{Deep learning}},}\ }\href
+  {https://doi.org/10.1038/nature14539} {\bibfield  {journal} {\bibinfo
+  {journal} {Nature}\ }\textbf {\bibinfo {volume} {521}},\ \bibinfo {pages}
+  {436} (\bibinfo {year} {2015})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {He}\ \emph {et~al.}(2016)\citenamefont {He},
+  \citenamefont {Zhang}, \citenamefont {Ren},\ and\ \citenamefont
+  {Sun}}]{he2016}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Kaiming}\ \bibnamefont
+  {He}}, \bibinfo {author} {\bibfnamefont {Xiangyu}\ \bibnamefont {Zhang}},
+  \bibinfo {author} {\bibfnamefont {Shaoqing}\ \bibnamefont {Ren}}, \ and\
+  \bibinfo {author} {\bibfnamefont {Jian}\ \bibnamefont {Sun}},\ }\bibfield
+  {title} {\enquote {\bibinfo {title} {Deep {{Residual Learning}} for {{Image
+  Recognition}}},}\ }in\ \href {\doibase 10.1109/CVPR.2016.90} {\emph {\bibinfo
+  {booktitle} {2016 {{IEEE Conference}} on {{Computer Vision}} and {{Pattern
+  Recognition}} ({{CVPR}})}}}\ (\bibinfo {year} {2016})\ pp.\ \bibinfo {pages}
+  {770--778}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Young}\ \emph {et~al.}(2017)\citenamefont {Young},
+  \citenamefont {Hazarika}, \citenamefont {Poria},\ and\ \citenamefont
+  {Cambria}}]{young2018}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Tom}\ \bibnamefont
+  {Young}}, \bibinfo {author} {\bibfnamefont {Devamanyu}\ \bibnamefont
+  {Hazarika}}, \bibinfo {author} {\bibfnamefont {Soujanya}\ \bibnamefont
+  {Poria}}, \ and\ \bibinfo {author} {\bibfnamefont {Erik}\ \bibnamefont
+  {Cambria}},\ }\href@noop {} {\enquote {\bibinfo {title} {Recent trends in
+  deep learning based natural language processing},}\ } (\bibinfo {year}
+  {2017}),\ \Eprint {http://arxiv.org/abs/1708.02709} {arXiv:1708.02709
+  [cs.CL]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Vamathevan}\ \emph {et~al.}(2019)\citenamefont
+  {Vamathevan}, \citenamefont {Clark}, \citenamefont {Czodrowski},
+  \citenamefont {Dunham}, \citenamefont {Ferran}, \citenamefont {Lee},
+  \citenamefont {Li}, \citenamefont {Madabhushi}, \citenamefont {Shah},
+  \citenamefont {Spitzer},\ and\ \citenamefont {Zhao}}]{vamathevan2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Jessica}\ \bibnamefont
+  {Vamathevan}}, \bibinfo {author} {\bibfnamefont {Dominic}\ \bibnamefont
+  {Clark}}, \bibinfo {author} {\bibfnamefont {Paul}\ \bibnamefont
+  {Czodrowski}}, \bibinfo {author} {\bibfnamefont {Ian}\ \bibnamefont
+  {Dunham}}, \bibinfo {author} {\bibfnamefont {Edgardo}\ \bibnamefont
+  {Ferran}}, \bibinfo {author} {\bibfnamefont {George}\ \bibnamefont {Lee}},
+  \bibinfo {author} {\bibfnamefont {Bin}\ \bibnamefont {Li}}, \bibinfo {author}
+  {\bibfnamefont {Anant}\ \bibnamefont {Madabhushi}}, \bibinfo {author}
+  {\bibfnamefont {Parantu}\ \bibnamefont {Shah}}, \bibinfo {author}
+  {\bibfnamefont {Michaela}\ \bibnamefont {Spitzer}}, \ and\ \bibinfo {author}
+  {\bibfnamefont {Shanrong}\ \bibnamefont {Zhao}},\ }\bibfield  {title}
+  {\enquote {\bibinfo {title} {Applications of machine learning in drug
+  discovery and development},}\ }\href {\doibase 10.1038/s41573-019-0024-5}
+  {\bibfield  {journal} {\bibinfo  {journal} {Nature Reviews Drug Discovery}\
+  }\textbf {\bibinfo {volume} {18}},\ \bibinfo {pages} {463--477} (\bibinfo
+  {year} {2019})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Badue}\ \emph {et~al.}(2019)\citenamefont {Badue},
+  \citenamefont {Guidolini}, \citenamefont {Carneiro}, \citenamefont {Azevedo},
+  \citenamefont {Cardoso}, \citenamefont {Forechi}, \citenamefont {Jesus},
+  \citenamefont {Berriel}, \citenamefont {Paixão}, \citenamefont {Mutz},
+  \citenamefont {Veronese}, \citenamefont {Oliveira-Santos},\ and\
+  \citenamefont {Souza}}]{selfdrivingcar2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Claudine}\
+  \bibnamefont {Badue}}, \bibinfo {author} {\bibfnamefont {Rânik}\
+  \bibnamefont {Guidolini}}, \bibinfo {author} {\bibfnamefont
+  {Raphael~Vivacqua}\ \bibnamefont {Carneiro}}, \bibinfo {author}
+  {\bibfnamefont {Pedro}\ \bibnamefont {Azevedo}}, \bibinfo {author}
+  {\bibfnamefont {Vinicius~Brito}\ \bibnamefont {Cardoso}}, \bibinfo {author}
+  {\bibfnamefont {Avelino}\ \bibnamefont {Forechi}}, \bibinfo {author}
+  {\bibfnamefont {Luan}\ \bibnamefont {Jesus}}, \bibinfo {author}
+  {\bibfnamefont {Rodrigo}\ \bibnamefont {Berriel}}, \bibinfo {author}
+  {\bibfnamefont {Thiago}\ \bibnamefont {Paixão}}, \bibinfo {author}
+  {\bibfnamefont {Filipe}\ \bibnamefont {Mutz}}, \bibinfo {author}
+  {\bibfnamefont {Lucas}\ \bibnamefont {Veronese}}, \bibinfo {author}
+  {\bibfnamefont {Thiago}\ \bibnamefont {Oliveira-Santos}}, \ and\ \bibinfo
+  {author} {\bibfnamefont {Alberto Ferreira~De}\ \bibnamefont {Souza}},\
+  }\href@noop {} {\enquote {\bibinfo {title} {Self-driving cars: A survey},}\ }
+  (\bibinfo {year} {2019}),\ \Eprint {http://arxiv.org/abs/1901.04407}
+  {arXiv:1901.04407 [cs.RO]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Silver}\ \emph {et~al.}(2017)\citenamefont {Silver},
+  \citenamefont {Schrittwieser}, \citenamefont {Simonyan}, \citenamefont
+  {Antonoglou}, \citenamefont {Huang}, \citenamefont {Guez}, \citenamefont
+  {Hubert}, \citenamefont {Baker}, \citenamefont {Lai}, \citenamefont {Bolton},
+  \citenamefont {Chen}, \citenamefont {Lillicrap}, \citenamefont {Hui},
+  \citenamefont {Sifre}, \citenamefont {van~den Driessche}, \citenamefont
+  {Graepel},\ and\ \citenamefont {Hassabis}}]{silver2017mastering}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {David}\ \bibnamefont
+  {Silver}}, \bibinfo {author} {\bibfnamefont {Julian}\ \bibnamefont
+  {Schrittwieser}}, \bibinfo {author} {\bibfnamefont {Karen}\ \bibnamefont
+  {Simonyan}}, \bibinfo {author} {\bibfnamefont {Ioannis}\ \bibnamefont
+  {Antonoglou}}, \bibinfo {author} {\bibfnamefont {Aja}\ \bibnamefont {Huang}},
+  \bibinfo {author} {\bibfnamefont {Arthur}\ \bibnamefont {Guez}}, \bibinfo
+  {author} {\bibfnamefont {Thomas}\ \bibnamefont {Hubert}}, \bibinfo {author}
+  {\bibfnamefont {Lucas}\ \bibnamefont {Baker}}, \bibinfo {author}
+  {\bibfnamefont {Matthew}\ \bibnamefont {Lai}}, \bibinfo {author}
+  {\bibfnamefont {Adrian}\ \bibnamefont {Bolton}}, \bibinfo {author}
+  {\bibfnamefont {Yutian}\ \bibnamefont {Chen}}, \bibinfo {author}
+  {\bibfnamefont {Timothy}\ \bibnamefont {Lillicrap}}, \bibinfo {author}
+  {\bibfnamefont {Fan}\ \bibnamefont {Hui}}, \bibinfo {author} {\bibfnamefont
+  {Laurent}\ \bibnamefont {Sifre}}, \bibinfo {author} {\bibfnamefont {George}\
+  \bibnamefont {van~den Driessche}}, \bibinfo {author} {\bibfnamefont {Thore}\
+  \bibnamefont {Graepel}}, \ and\ \bibinfo {author} {\bibfnamefont {Demis}\
+  \bibnamefont {Hassabis}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Mastering the game of go without human knowledge},}\ }\href {\doibase
+  10.1038/nature24270} {\bibfield  {journal} {\bibinfo  {journal} {Nature}\
+  }\textbf {\bibinfo {volume} {550}},\ \bibinfo {pages} {354--359} (\bibinfo
+  {year} {2017})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Carleo}\ \emph {et~al.}(2019)\citenamefont {Carleo},
+  \citenamefont {Cirac}, \citenamefont {Cranmer}, \citenamefont {Daudet},
+  \citenamefont {Schuld}, \citenamefont {Tishby}, \citenamefont
+  {Vogt-Maranto},\ and\ \citenamefont {Zdeborová}}]{carleo2019machine}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Giuseppe}\
+  \bibnamefont {Carleo}}, \bibinfo {author} {\bibfnamefont {Ignacio}\
+  \bibnamefont {Cirac}}, \bibinfo {author} {\bibfnamefont {Kyle}\ \bibnamefont
+  {Cranmer}}, \bibinfo {author} {\bibfnamefont {Laurent}\ \bibnamefont
+  {Daudet}}, \bibinfo {author} {\bibfnamefont {Maria}\ \bibnamefont {Schuld}},
+  \bibinfo {author} {\bibfnamefont {Naftali}\ \bibnamefont {Tishby}}, \bibinfo
+  {author} {\bibfnamefont {Leslie}\ \bibnamefont {Vogt-Maranto}}, \ and\
+  \bibinfo {author} {\bibfnamefont {Lenka}\ \bibnamefont {Zdeborová}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Machine learning and the
+  physical sciences},}\ }\href {\doibase 10.1103/revmodphys.91.045002}
+  {\bibfield  {journal} {\bibinfo  {journal} {Reviews of Modern Physics}\
+  }\textbf {\bibinfo {volume} {91}} (\bibinfo {year} {2019}),\
+  10.1103/revmodphys.91.045002}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Carleo}\ and\ \citenamefont
+  {Troyer}(2017)}]{carleo2017}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Giuseppe}\
+  \bibnamefont {Carleo}}\ and\ \bibinfo {author} {\bibfnamefont {Matthias}\
+  \bibnamefont {Troyer}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Solving the quantum many-body problem with artificial neural networks},}\
+  }\href {\doibase 10.1126/science.aag2302} {\bibfield  {journal} {\bibinfo
+  {journal} {Science}\ }\textbf {\bibinfo {volume} {355}},\ \bibinfo {pages}
+  {602–606} (\bibinfo {year} {2017})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Hohenberg}\ and\ \citenamefont
+  {Kohn}(1964)}]{PhysRev.136.B864}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {P.}~\bibnamefont
+  {Hohenberg}}\ and\ \bibinfo {author} {\bibfnamefont {W.}~\bibnamefont
+  {Kohn}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Inhomogeneous
+  electron gas},}\ }\href {\doibase 10.1103/PhysRev.136.B864} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev.}\ }\textbf {\bibinfo {volume}
+  {136}},\ \bibinfo {pages} {B864--B871} (\bibinfo {year} {1964})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Bardeen}\ \emph {et~al.}(1957)\citenamefont
+  {Bardeen}, \citenamefont {Cooper},\ and\ \citenamefont
+  {Schrieffer}}]{PhysRev.108.1175}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.}~\bibnamefont
+  {Bardeen}}, \bibinfo {author} {\bibfnamefont {L.~N.}\ \bibnamefont {Cooper}},
+  \ and\ \bibinfo {author} {\bibfnamefont {J.~R.}\ \bibnamefont {Schrieffer}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Theory of
+  superconductivity},}\ }\href {\doibase 10.1103/PhysRev.108.1175} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev.}\ }\textbf {\bibinfo {volume}
+  {108}},\ \bibinfo {pages} {1175--1204} (\bibinfo {year} {1957})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Laughlin}(1983)}]{PhysRevLett.50.1395}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {R.~B.}\ \bibnamefont
+  {Laughlin}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Anomalous
+  quantum hall effect: An incompressible quantum fluid with fractionally
+  charged excitations},}\ }\href {\doibase 10.1103/PhysRevLett.50.1395}
+  {\bibfield  {journal} {\bibinfo  {journal} {Phys. Rev. Lett.}\ }\textbf
+  {\bibinfo {volume} {50}},\ \bibinfo {pages} {1395--1398} (\bibinfo {year}
+  {1983})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Becca}\ and\ \citenamefont
+  {Sorella}(2017)}]{becca2017}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {F.}~\bibnamefont
+  {Becca}}\ and\ \bibinfo {author} {\bibfnamefont {S.}~\bibnamefont
+  {Sorella}},\ }\href {\doibase 10.1017/9781316417041} {\emph {\bibinfo {title}
+  {Quantum Monte Carlo Approaches for Correlated Systems}}}\ (\bibinfo
+  {publisher} {Cambridge University Press},\ \bibinfo {year}
+  {2017})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Or{\'u}s}(2019)}]{orus2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Rom{\'a}n}\
+  \bibnamefont {Or{\'u}s}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Tensor networks for complex quantum systems},}\ }\href {\doibase
+  10.1038/s42254-019-0086-7} {\bibfield  {journal} {\bibinfo  {journal} {Nature
+  Reviews Physics}\ }\textbf {\bibinfo {volume} {1}},\ \bibinfo {pages}
+  {538--550} (\bibinfo {year} {2019})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Peruzzo}\ \emph {et~al.}(2014)\citenamefont
+  {Peruzzo}, \citenamefont {McClean}, \citenamefont {Shadbolt}, \citenamefont
+  {Yung}, \citenamefont {Zhou}, \citenamefont {Love}, \citenamefont
+  {{Aspuru-Guzik}},\ and\ \citenamefont {O'Brien}}]{peruzzo2014a}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Alberto}\ \bibnamefont
+  {Peruzzo}}, \bibinfo {author} {\bibfnamefont {Jarrod}\ \bibnamefont
+  {McClean}}, \bibinfo {author} {\bibfnamefont {Peter}\ \bibnamefont
+  {Shadbolt}}, \bibinfo {author} {\bibfnamefont {Man-Hong}\ \bibnamefont
+  {Yung}}, \bibinfo {author} {\bibfnamefont {Xiao-Qi}\ \bibnamefont {Zhou}},
+  \bibinfo {author} {\bibfnamefont {Peter~J.}\ \bibnamefont {Love}}, \bibinfo
+  {author} {\bibfnamefont {Al{\'a}n}\ \bibnamefont {{Aspuru-Guzik}}}, \ and\
+  \bibinfo {author} {\bibfnamefont {Jeremy~L.}\ \bibnamefont {O'Brien}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {A variational eigenvalue
+  solver on a photonic quantum processor},}\ }\href {\doibase
+  10.1038/ncomms5213} {\bibfield  {journal} {\bibinfo  {journal} {Nature
+  Communications}\ }\textbf {\bibinfo {volume} {5}},\ \bibinfo {pages} {1--7}
+  (\bibinfo {year} {2014})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Androsiuk}\ \emph {et~al.}(1993)\citenamefont
+  {Androsiuk}, \citenamefont {Kulak},\ and\ \citenamefont
+  {Sienicki}}]{androsiuk1993}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.}~\bibnamefont
+  {Androsiuk}}, \bibinfo {author} {\bibfnamefont {L.}~\bibnamefont {Kulak}}, \
+  and\ \bibinfo {author} {\bibfnamefont {K.}~\bibnamefont {Sienicki}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Neural network solution of
+  the {{Schr{\"o}dinger}} equation for a two-dimensional harmonic
+  oscillator},}\ }\href {\doibase 10.1016/0301-0104(93)80153-Z} {\bibfield
+  {journal} {\bibinfo  {journal} {Chemical Physics}\ }\textbf {\bibinfo
+  {volume} {173}},\ \bibinfo {pages} {377--383} (\bibinfo {year}
+  {1993})}\BibitemShut {NoStop}%
+\bibitem [{LAG(1997)}]{LAGARIS19971}%
+  \BibitemOpen
+  \bibfield  {title} {\enquote {\bibinfo {title} {Artificial neural network
+  methods in quantum mechanics},}\ }\href {\doibase
+  https://doi.org/10.1016/S0010-4655(97)00054-4} {\bibfield  {journal}
+  {\bibinfo  {journal} {Computer Physics Communications}\ }\textbf {\bibinfo
+  {volume} {104}},\ \bibinfo {pages} {1 -- 14} (\bibinfo {year}
+  {1997})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Sugawara}(2001)}]{sugawara2001}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {M.}~\bibnamefont
+  {Sugawara}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Numerical
+  solution of the {{Schr{\"o}dinger}} equation by neural network and genetic
+  algorithm},}\ }\href {\doibase 10.1016/S0010-4655(01)00286-7} {\bibfield
+  {journal} {\bibinfo  {journal} {Computer Physics Communications}\ }\textbf
+  {\bibinfo {volume} {140}},\ \bibinfo {pages} {366--380} (\bibinfo {year}
+  {2001})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Melko}\ \emph {et~al.}(2019)\citenamefont {Melko},
+  \citenamefont {Carleo}, \citenamefont {Carrasquilla},\ and\ \citenamefont
+  {Cirac}}]{melko2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Roger~G.}\
+  \bibnamefont {Melko}}, \bibinfo {author} {\bibfnamefont {Giuseppe}\
+  \bibnamefont {Carleo}}, \bibinfo {author} {\bibfnamefont {Juan}\ \bibnamefont
+  {Carrasquilla}}, \ and\ \bibinfo {author} {\bibfnamefont {J.~Ignacio}\
+  \bibnamefont {Cirac}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Restricted {{Boltzmann}} machines in quantum physics},}\ }\href {\doibase
+  10.1038/s41567-019-0545-1} {\bibfield  {journal} {\bibinfo  {journal} {Nature
+  Physics}\ ,\ \bibinfo {pages} {1}} (\bibinfo {year} {2019})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Hochreiter}\ and\ \citenamefont
+  {Schmidhuber}(1997)}]{hochreiter1997long}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Sepp}\ \bibnamefont
+  {Hochreiter}}\ and\ \bibinfo {author} {\bibfnamefont {J\"{u}rgen}\
+  \bibnamefont {Schmidhuber}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Long short-term memory},}\ }\href {\doibase 10.1162/neco.1997.9.8.1735}
+  {\bibfield  {journal} {\bibinfo  {journal} {Neural Comput.}\ }\textbf
+  {\bibinfo {volume} {9}},\ \bibinfo {pages} {1735--1780} (\bibinfo {year}
+  {1997})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Graves}(2012)}]{graves2012supervised}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Alex}\ \bibnamefont
+  {Graves}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Supervised
+  sequence labelling},}\ }in\ \href
+  {https://www.cs.toronto.edu/~graves/preprint.pdf} {\emph {\bibinfo
+  {booktitle} {Supervised sequence labelling with recurrent neural networks}}}\
+  (\bibinfo  {publisher} {Springer},\ \bibinfo {year} {2012})\ pp.\ \bibinfo
+  {pages} {5--13}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Cho}\ \emph {et~al.}(2014{\natexlab{a}})\citenamefont
+  {Cho}, \citenamefont {van Merrienboer}, \citenamefont {Gulcehre},
+  \citenamefont {Bahdanau}, \citenamefont {Bougares}, \citenamefont {Schwenk},\
+  and\ \citenamefont {Bengio}}]{cho2014learning}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Kyunghyun}\
+  \bibnamefont {Cho}}, \bibinfo {author} {\bibfnamefont {Bart}\ \bibnamefont
+  {van Merrienboer}}, \bibinfo {author} {\bibfnamefont {Caglar}\ \bibnamefont
+  {Gulcehre}}, \bibinfo {author} {\bibfnamefont {Dzmitry}\ \bibnamefont
+  {Bahdanau}}, \bibinfo {author} {\bibfnamefont {Fethi}\ \bibnamefont
+  {Bougares}}, \bibinfo {author} {\bibfnamefont {Holger}\ \bibnamefont
+  {Schwenk}}, \ and\ \bibinfo {author} {\bibfnamefont {Yoshua}\ \bibnamefont
+  {Bengio}},\ }\href@noop {} {\enquote {\bibinfo {title} {Learning phrase
+  representations using rnn encoder-decoder for statistical machine
+  translation},}\ } (\bibinfo {year} {2014}{\natexlab{a}}),\ \Eprint
+  {http://arxiv.org/abs/1406.1078} {arXiv:1406.1078 [cs.CL]} \BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Chung}\ \emph {et~al.}(2014)\citenamefont {Chung},
+  \citenamefont {Gulcehre}, \citenamefont {Cho},\ and\ \citenamefont
+  {Bengio}}]{chung2014}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Junyoung}\
+  \bibnamefont {Chung}}, \bibinfo {author} {\bibfnamefont {Caglar}\
+  \bibnamefont {Gulcehre}}, \bibinfo {author} {\bibfnamefont {KyungHyun}\
+  \bibnamefont {Cho}}, \ and\ \bibinfo {author} {\bibfnamefont {Yoshua}\
+  \bibnamefont {Bengio}},\ }\href@noop {} {\enquote {\bibinfo {title}
+  {Empirical evaluation of gated recurrent neural networks on sequence
+  modeling},}\ } (\bibinfo {year} {2014}),\ \Eprint
+  {http://arxiv.org/abs/1412.3555} {arXiv:1412.3555 [cs.NE]} \BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Lipton}\ \emph {et~al.}(2015)\citenamefont {Lipton},
+  \citenamefont {Berkowitz},\ and\ \citenamefont {Elkan}}]{lipton2015}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Zachary~C.}\
+  \bibnamefont {Lipton}}, \bibinfo {author} {\bibfnamefont {John}\ \bibnamefont
+  {Berkowitz}}, \ and\ \bibinfo {author} {\bibfnamefont {Charles}\ \bibnamefont
+  {Elkan}},\ }\href@noop {} {\enquote {\bibinfo {title} {A critical review of
+  recurrent neural networks for sequence learning},}\ } (\bibinfo {year}
+  {2015}),\ \Eprint {http://arxiv.org/abs/1506.00019} {arXiv:1506.00019
+  [cs.LG]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Vaswani}\ \emph {et~al.}(2017)\citenamefont
+  {Vaswani}, \citenamefont {Shazeer}, \citenamefont {Parmar}, \citenamefont
+  {Uszkoreit}, \citenamefont {Jones}, \citenamefont {Gomez}, \citenamefont
+  {Kaiser},\ and\ \citenamefont {Polosukhin}}]{Transformer}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Ashish}\ \bibnamefont
+  {Vaswani}}, \bibinfo {author} {\bibfnamefont {Noam}\ \bibnamefont {Shazeer}},
+  \bibinfo {author} {\bibfnamefont {Niki}\ \bibnamefont {Parmar}}, \bibinfo
+  {author} {\bibfnamefont {Jakob}\ \bibnamefont {Uszkoreit}}, \bibinfo {author}
+  {\bibfnamefont {Llion}\ \bibnamefont {Jones}}, \bibinfo {author}
+  {\bibfnamefont {Aidan~N.}\ \bibnamefont {Gomez}}, \bibinfo {author}
+  {\bibfnamefont {Lukasz}\ \bibnamefont {Kaiser}}, \ and\ \bibinfo {author}
+  {\bibfnamefont {Illia}\ \bibnamefont {Polosukhin}},\ }\href@noop {} {\enquote
+  {\bibinfo {title} {Attention is all you need},}\ } (\bibinfo {year} {2017}),\
+  \Eprint {http://arxiv.org/abs/1706.03762} {arXiv:1706.03762 [cs.CL]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Devlin}\ \emph {et~al.}(2018)\citenamefont {Devlin},
+  \citenamefont {Chang}, \citenamefont {Lee},\ and\ \citenamefont
+  {Toutanova}}]{devlin2018bert}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Jacob}\ \bibnamefont
+  {Devlin}}, \bibinfo {author} {\bibfnamefont {Ming-Wei}\ \bibnamefont
+  {Chang}}, \bibinfo {author} {\bibfnamefont {Kenton}\ \bibnamefont {Lee}}, \
+  and\ \bibinfo {author} {\bibfnamefont {Kristina}\ \bibnamefont {Toutanova}},\
+  }\href@noop {} {\enquote {\bibinfo {title} {Bert: Pre-training of deep
+  bidirectional transformers for language understanding},}\ } (\bibinfo {year}
+  {2018}),\ \Eprint {http://arxiv.org/abs/1810.04805} {arXiv:1810.04805
+  [cs.CL]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Yang}\ \emph {et~al.}(2019)\citenamefont {Yang},
+  \citenamefont {Dai}, \citenamefont {Yang}, \citenamefont {Carbonell},
+  \citenamefont {Salakhutdinov},\ and\ \citenamefont {Le}}]{yang2019xlnet}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Zhilin}\ \bibnamefont
+  {Yang}}, \bibinfo {author} {\bibfnamefont {Zihang}\ \bibnamefont {Dai}},
+  \bibinfo {author} {\bibfnamefont {Yiming}\ \bibnamefont {Yang}}, \bibinfo
+  {author} {\bibfnamefont {Jaime}\ \bibnamefont {Carbonell}}, \bibinfo {author}
+  {\bibfnamefont {Ruslan}\ \bibnamefont {Salakhutdinov}}, \ and\ \bibinfo
+  {author} {\bibfnamefont {Quoc~V.}\ \bibnamefont {Le}},\ }\href@noop {}
+  {\enquote {\bibinfo {title} {Xlnet: Generalized autoregressive pretraining
+  for language understanding},}\ } (\bibinfo {year} {2019}),\ \Eprint
+  {http://arxiv.org/abs/1906.08237} {arXiv:1906.08237 [cs.CL]} \BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Carrasquilla}\ \emph
+  {et~al.}(2019{\natexlab{a}})\citenamefont {Carrasquilla}, \citenamefont
+  {Torlai}, \citenamefont {Melko},\ and\ \citenamefont
+  {Aolita}}]{Carrasquilla2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Juan}\ \bibnamefont
+  {Carrasquilla}}, \bibinfo {author} {\bibfnamefont {Giacomo}\ \bibnamefont
+  {Torlai}}, \bibinfo {author} {\bibfnamefont {Roger~G.}\ \bibnamefont
+  {Melko}}, \ and\ \bibinfo {author} {\bibfnamefont {Leandro}\ \bibnamefont
+  {Aolita}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Reconstructing
+  quantum states with generative models},}\ }\href {\doibase
+  10.1038/s42256-019-0028-1} {\bibfield  {journal} {\bibinfo  {journal} {Nature
+  Machine Intelligence}\ }\textbf {\bibinfo {volume} {1}},\ \bibinfo {pages}
+  {155--161} (\bibinfo {year} {2019}{\natexlab{a}})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Levine}\ \emph {et~al.}(2019)\citenamefont {Levine},
+  \citenamefont {Sharir}, \citenamefont {Cohen},\ and\ \citenamefont
+  {Shashua}}]{PhysRevLett.122.065301}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Yoav}\ \bibnamefont
+  {Levine}}, \bibinfo {author} {\bibfnamefont {Or}~\bibnamefont {Sharir}},
+  \bibinfo {author} {\bibfnamefont {Nadav}\ \bibnamefont {Cohen}}, \ and\
+  \bibinfo {author} {\bibfnamefont {Amnon}\ \bibnamefont {Shashua}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Quantum entanglement in deep
+  learning architectures},}\ }\href {\doibase 10.1103/PhysRevLett.122.065301}
+  {\bibfield  {journal} {\bibinfo  {journal} {Phys. Rev. Lett.}\ }\textbf
+  {\bibinfo {volume} {122}},\ \bibinfo {pages} {065301} (\bibinfo {year}
+  {2019})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {{Bengio}}\ and\ \citenamefont
+  {{Bengio}}(2000)}]{Bengio2000}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {S.}~\bibnamefont
+  {{Bengio}}}\ and\ \bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont
+  {{Bengio}}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Taking on the
+  curse of dimensionality in joint distributions using neural networks},}\
+  }\href {\doibase 10.1109/72.846725} {\bibfield  {journal} {\bibinfo
+  {journal} {IEEE Transactions on Neural Networks}\ }\textbf {\bibinfo {volume}
+  {11}},\ \bibinfo {pages} {550--557} (\bibinfo {year} {2000})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Uria}\ \emph {et~al.}(2016)\citenamefont {Uria},
+  \citenamefont {C\^{o}t\'{e}}, \citenamefont {Gregor}, \citenamefont
+  {Murray},\ and\ \citenamefont {Larochelle}}]{NADE}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Benigno}\ \bibnamefont
+  {Uria}}, \bibinfo {author} {\bibfnamefont {Marc-Alexandre}\ \bibnamefont
+  {C\^{o}t\'{e}}}, \bibinfo {author} {\bibfnamefont {Karol}\ \bibnamefont
+  {Gregor}}, \bibinfo {author} {\bibfnamefont {Iain}\ \bibnamefont {Murray}}, \
+  and\ \bibinfo {author} {\bibfnamefont {Hugo}\ \bibnamefont {Larochelle}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Neural autoregressive
+  distribution estimation},}\ }\href
+  {https://dl.acm.org/doi/abs/10.5555/2946645.3053487} {\bibfield  {journal}
+  {\bibinfo  {journal} {J. Mach. Learn. Res.}\ }\textbf {\bibinfo {volume}
+  {17}},\ \bibinfo {pages} {7184–7220} (\bibinfo {year} {2016})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Wu}\ \emph {et~al.}(2019)\citenamefont {Wu},
+  \citenamefont {Wang},\ and\ \citenamefont {Zhang}}]{Wu_2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Dian}\ \bibnamefont
+  {Wu}}, \bibinfo {author} {\bibfnamefont {Lei}\ \bibnamefont {Wang}}, \ and\
+  \bibinfo {author} {\bibfnamefont {Pan}\ \bibnamefont {Zhang}},\ }\bibfield
+  {title} {\enquote {\bibinfo {title} {Solving statistical mechanics using
+  variational autoregressive networks},}\ }\href {\doibase
+  10.1103/physrevlett.122.080602} {\bibfield  {journal} {\bibinfo  {journal}
+  {Physical Review Letters}\ }\textbf {\bibinfo {volume} {122}} (\bibinfo
+  {year} {2019}),\ 10.1103/physrevlett.122.080602}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Goodfellow}\ \emph {et~al.}(2016)\citenamefont
+  {Goodfellow}, \citenamefont {Bengio},\ and\ \citenamefont
+  {Courville}}]{Goodfellow-et-al-2016}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Ian}\ \bibnamefont
+  {Goodfellow}}, \bibinfo {author} {\bibfnamefont {Yoshua}\ \bibnamefont
+  {Bengio}}, \ and\ \bibinfo {author} {\bibfnamefont {Aaron}\ \bibnamefont
+  {Courville}},\ }\href@noop {} {\emph {\bibinfo {title} {Deep Learning}}}\
+  (\bibinfo  {publisher} {MIT Press},\ \bibinfo {year} {2016})\ \bibinfo {note}
+  {\url{http://www.deeplearningbook.org}}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Goodfellow}(2016)}]{goodfellow2016nips}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Ian}\ \bibnamefont
+  {Goodfellow}},\ }\href@noop {} {\enquote {\bibinfo {title} {Nips 2016
+  tutorial: Generative adversarial networks},}\ } (\bibinfo {year} {2016}),\
+  \Eprint {http://arxiv.org/abs/1701.00160} {arXiv:1701.00160 [cs.LG]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {{Bengio}}\ \emph {et~al.}(1994)\citenamefont
+  {{Bengio}}, \citenamefont {{Simard}},\ and\ \citenamefont
+  {{Frasconi}}}]{Bengio94}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont
+  {{Bengio}}}, \bibinfo {author} {\bibfnamefont {P.}~\bibnamefont {{Simard}}},
+  \ and\ \bibinfo {author} {\bibfnamefont {P.}~\bibnamefont {{Frasconi}}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Learning long-term
+  dependencies with gradient descent is difficult},}\ }\href {\doibase
+  10.1109/72.279181} {\bibfield  {journal} {\bibinfo  {journal} {IEEE
+  Transactions on Neural Networks}\ }\textbf {\bibinfo {volume} {5}},\ \bibinfo
+  {pages} {157--166} (\bibinfo {year} {1994})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {{Kolen}}\ and\ \citenamefont
+  {{Kremer}}(2001)}]{Kolen2001}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~F.}\ \bibnamefont
+  {{Kolen}}}\ and\ \bibinfo {author} {\bibfnamefont {S.~C.}\ \bibnamefont
+  {{Kremer}}},\ }\enquote {\bibinfo {title} {Gradient flow in recurrent nets:
+  The difficulty of learning longterm dependencies},}\ in\ \href {\doibase
+  10.1109/9780470544037.ch14} {\emph {\bibinfo {booktitle} {A Field Guide to
+  Dynamical Recurrent Networks}}}\ (\bibinfo  {publisher} {IEEE},\ \bibinfo
+  {year} {2001})\ pp.\ \bibinfo {pages} {237--243}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Pascanu}\ \emph {et~al.}(2013)\citenamefont
+  {Pascanu}, \citenamefont {Mikolov},\ and\ \citenamefont
+  {Bengio}}]{pascanu2013difficulty}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Razvan}\ \bibnamefont
+  {Pascanu}}, \bibinfo {author} {\bibfnamefont {Tomas}\ \bibnamefont
+  {Mikolov}}, \ and\ \bibinfo {author} {\bibfnamefont {Yoshua}\ \bibnamefont
+  {Bengio}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {On the
+  difficulty of training recurrent neural networks},}\ }in\ \href
+  {http://proceedings.mlr.press/v28/pascanu13.pdf} {\emph {\bibinfo {booktitle}
+  {International conference on machine learning}}}\ (\bibinfo {year} {2013})\
+  pp.\ \bibinfo {pages} {1310--1318}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Fannes}\ \emph {et~al.}(1992)\citenamefont {Fannes},
+  \citenamefont {Nachtergaele},\ and\ \citenamefont
+  {Werner}}]{fannes_finitely_1992}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {M.}~\bibnamefont
+  {Fannes}}, \bibinfo {author} {\bibfnamefont {B.}~\bibnamefont
+  {Nachtergaele}}, \ and\ \bibinfo {author} {\bibfnamefont {R.~F.}\
+  \bibnamefont {Werner}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Finitely correlated states on quantum spin chains},}\ }\href {\doibase
+  10.1007/BF02099178} {\bibfield  {journal} {\bibinfo  {journal}
+  {Communications in Mathematical Physics}\ }\textbf {\bibinfo {volume}
+  {144}},\ \bibinfo {pages} {443--490} (\bibinfo {year} {1992})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Shen}(2019)}]{shen2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Huitao}\ \bibnamefont
+  {Shen}},\ }\href@noop {} {\enquote {\bibinfo {title} {Mutual information
+  scaling and expressive power of sequence models},}\ } (\bibinfo {year}
+  {2019}),\ \Eprint {http://arxiv.org/abs/1905.04271} {arXiv:1905.04271
+  [cs.LG]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Cho}\ \emph {et~al.}(2014{\natexlab{b}})\citenamefont
+  {Cho}, \citenamefont {van Merri{\"e}nboer}, \citenamefont {Bahdanau},\ and\
+  \citenamefont {Bengio}}]{cho-etal-2014-properties}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Kyunghyun}\
+  \bibnamefont {Cho}}, \bibinfo {author} {\bibfnamefont {Bart}\ \bibnamefont
+  {van Merri{\"e}nboer}}, \bibinfo {author} {\bibfnamefont {Dzmitry}\
+  \bibnamefont {Bahdanau}}, \ and\ \bibinfo {author} {\bibfnamefont {Yoshua}\
+  \bibnamefont {Bengio}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {On
+  the properties of neural machine translation: Encoder{--}decoder
+  approaches},}\ }in\ \href {\doibase 10.3115/v1/W14-4012} {\emph {\bibinfo
+  {booktitle} {Proceedings of {SSST}-8, Eighth Workshop on Syntax, Semantics
+  and Structure in Statistical Translation}}}\ (\bibinfo  {publisher}
+  {Association for Computational Linguistics},\ \bibinfo {address} {Doha,
+  Qatar},\ \bibinfo {year} {2014})\ pp.\ \bibinfo {pages}
+  {103--111}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Bravyi}\ \emph {et~al.}(2008)\citenamefont {Bravyi},
+  \citenamefont {Divincenzo}, \citenamefont {Oliveira},\ and\ \citenamefont
+  {Terhal}}]{Bravyi:2008:CSL:2011772.2011773}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Sergey}\ \bibnamefont
+  {Bravyi}}, \bibinfo {author} {\bibfnamefont {David~P.}\ \bibnamefont
+  {Divincenzo}}, \bibinfo {author} {\bibfnamefont {Roberto}\ \bibnamefont
+  {Oliveira}}, \ and\ \bibinfo {author} {\bibfnamefont {Barbara~M.}\
+  \bibnamefont {Terhal}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {The
+  complexity of stoquastic local hamiltonian problems},}\ }\href
+  {http://dl.acm.org/citation.cfm?id=2011772.2011773} {\bibfield  {journal}
+  {\bibinfo  {journal} {Quantum Info. Comput.}\ }\textbf {\bibinfo {volume}
+  {8}},\ \bibinfo {pages} {361--385} (\bibinfo {year} {2008})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Torlai}\ \emph {et~al.}(2018)\citenamefont {Torlai},
+  \citenamefont {Mazzola}, \citenamefont {Carrasquilla}, \citenamefont
+  {Troyer}, \citenamefont {Melko},\ and\ \citenamefont {Carleo}}]{torlai2018}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Giacomo}\ \bibnamefont
+  {Torlai}}, \bibinfo {author} {\bibfnamefont {Guglielmo}\ \bibnamefont
+  {Mazzola}}, \bibinfo {author} {\bibfnamefont {Juan}\ \bibnamefont
+  {Carrasquilla}}, \bibinfo {author} {\bibfnamefont {Matthias}\ \bibnamefont
+  {Troyer}}, \bibinfo {author} {\bibfnamefont {Roger}\ \bibnamefont {Melko}}, \
+  and\ \bibinfo {author} {\bibfnamefont {Giuseppe}\ \bibnamefont {Carleo}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Neural-network quantum state
+  tomography},}\ }\href {\doibase 10.1038/s41567-018-0048-5} {\bibfield
+  {journal} {\bibinfo  {journal} {Nature Physics}\ }\textbf {\bibinfo {volume}
+  {14}},\ \bibinfo {pages} {447} (\bibinfo {year} {2018})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {White}(1992)}]{white_density_1992}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Steven~R.}\
+  \bibnamefont {White}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Density matrix formulation for quantum renormalization groups},}\ }\href
+  {\doibase 10.1103/PhysRevLett.69.2863} {\bibfield  {journal} {\bibinfo
+  {journal} {Phys. Rev. Lett.}\ }\textbf {\bibinfo {volume} {69}},\ \bibinfo
+  {pages} {2863--2866} (\bibinfo {year} {1992})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Roberts}\ \emph {et~al.}(2019)\citenamefont
+  {Roberts}, \citenamefont {Milsted}, \citenamefont {Ganahl}, \citenamefont
+  {Zalcman}, \citenamefont {Fontaine}, \citenamefont {Zou}, \citenamefont
+  {Hidary}, \citenamefont {Vidal},\ and\ \citenamefont
+  {Leichenauer}}]{roberts2019tensornetwork}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Chase}\ \bibnamefont
+  {Roberts}}, \bibinfo {author} {\bibfnamefont {Ashley}\ \bibnamefont
+  {Milsted}}, \bibinfo {author} {\bibfnamefont {Martin}\ \bibnamefont
+  {Ganahl}}, \bibinfo {author} {\bibfnamefont {Adam}\ \bibnamefont {Zalcman}},
+  \bibinfo {author} {\bibfnamefont {Bruce}\ \bibnamefont {Fontaine}}, \bibinfo
+  {author} {\bibfnamefont {Yijian}\ \bibnamefont {Zou}}, \bibinfo {author}
+  {\bibfnamefont {Jack}\ \bibnamefont {Hidary}}, \bibinfo {author}
+  {\bibfnamefont {Guifre}\ \bibnamefont {Vidal}}, \ and\ \bibinfo {author}
+  {\bibfnamefont {Stefan}\ \bibnamefont {Leichenauer}},\ }\href@noop {}
+  {\enquote {\bibinfo {title} {Tensornetwork: A library for physics and machine
+  learning},}\ } (\bibinfo {year} {2019}),\ \Eprint
+  {http://arxiv.org/abs/1905.01330} {arXiv:1905.01330 [physics.comp-ph]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Abrikosov}\ \emph {et~al.}(1975)\citenamefont
+  {Abrikosov}, \citenamefont {Dzyaloshinskii}, \citenamefont {Gorkov},\ and\
+  \citenamefont {Silverman}}]{Abrikosov:107441}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A~A}\ \bibnamefont
+  {Abrikosov}}, \bibinfo {author} {\bibfnamefont {I}~\bibnamefont
+  {Dzyaloshinskii}}, \bibinfo {author} {\bibfnamefont {L~P}\ \bibnamefont
+  {Gorkov}}, \ and\ \bibinfo {author} {\bibfnamefont {Richard~A}\ \bibnamefont
+  {Silverman}},\ }\href {https://cds.cern.ch/record/107441} {\emph {\bibinfo
+  {title} {{Methods of quantum field theory in statistical physics}}}}\
+  (\bibinfo  {publisher} {Dover},\ \bibinfo {address} {New York, NY},\ \bibinfo
+  {year} {1975})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Flammia}\ \emph {et~al.}(2009)\citenamefont
+  {Flammia}, \citenamefont {Hamma}, \citenamefont {Hughes},\ and\ \citenamefont
+  {Wen}}]{Alioscia2009}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Steven~T.}\
+  \bibnamefont {Flammia}}, \bibinfo {author} {\bibfnamefont {Alioscia}\
+  \bibnamefont {Hamma}}, \bibinfo {author} {\bibfnamefont {Taylor~L.}\
+  \bibnamefont {Hughes}}, \ and\ \bibinfo {author} {\bibfnamefont {Xiao-Gang}\
+  \bibnamefont {Wen}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Topological entanglement r\'enyi entropy and reduced density matrix
+  structure},}\ }\href {\doibase 10.1103/PhysRevLett.103.261601} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. Lett.}\ }\textbf {\bibinfo
+  {volume} {103}},\ \bibinfo {pages} {261601} (\bibinfo {year}
+  {2009})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Ryu}\ and\ \citenamefont
+  {Takayanagi}(2006)}]{Ryu2006}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Shinsei}\ \bibnamefont
+  {Ryu}}\ and\ \bibinfo {author} {\bibfnamefont {Tadashi}\ \bibnamefont
+  {Takayanagi}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Holographic
+  derivation of entanglement entropy from the anti--de sitter space/conformal
+  field theory correspondence},}\ }\href {\doibase
+  10.1103/PhysRevLett.96.181602} {\bibfield  {journal} {\bibinfo  {journal}
+  {Phys. Rev. Lett.}\ }\textbf {\bibinfo {volume} {96}},\ \bibinfo {pages}
+  {181602} (\bibinfo {year} {2006})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Hastings}\ \emph {et~al.}(2010)\citenamefont
+  {Hastings}, \citenamefont {González}, \citenamefont {Kallin},\ and\
+  \citenamefont {Melko}}]{hastings2010measuring}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Matthew~B.}\
+  \bibnamefont {Hastings}}, \bibinfo {author} {\bibfnamefont {Iván}\
+  \bibnamefont {González}}, \bibinfo {author} {\bibfnamefont {Ann~B.}\
+  \bibnamefont {Kallin}}, \ and\ \bibinfo {author} {\bibfnamefont {Roger~G.}\
+  \bibnamefont {Melko}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Measuring renyi entanglement entropy in quantum monte carlo simulations},}\
+  }\href {\doibase 10.1103/physrevlett.104.157201} {\bibfield  {journal}
+  {\bibinfo  {journal} {Physical Review Letters}\ }\textbf {\bibinfo {volume}
+  {104}} (\bibinfo {year} {2010}),\ 10.1103/physrevlett.104.157201}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {White}\ and\ \citenamefont
+  {Affleck}(1996)}]{white1996}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Steven~R.}\
+  \bibnamefont {White}}\ and\ \bibinfo {author} {\bibfnamefont {Ian}\
+  \bibnamefont {Affleck}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Dimerization and incommensurate spiral spin correlations in the zigzag spin
+  chain: Analogies to the kondo lattice},}\ }\href {\doibase
+  10.1103/PhysRevB.54.9862} {\bibfield  {journal} {\bibinfo  {journal} {Phys.
+  Rev. B}\ }\textbf {\bibinfo {volume} {54}},\ \bibinfo {pages} {9862--9869}
+  (\bibinfo {year} {1996})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Eggert}(1996)}]{Eggert1996}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Sebastian}\
+  \bibnamefont {Eggert}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Numerical evidence for multiplicative logarithmic corrections from marginal
+  operators},}\ }\href {\doibase 10.1103/PhysRevB.54.R9612} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. B}\ }\textbf {\bibinfo {volume}
+  {54}},\ \bibinfo {pages} {R9612--R9615} (\bibinfo {year} {1996})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Becca}\ \emph {et~al.}(2009)\citenamefont {Becca},
+  \citenamefont {Capriotti}, \citenamefont {Parola},\ and\ \citenamefont
+  {Sorella}}]{becca2009variational}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Federico}\
+  \bibnamefont {Becca}}, \bibinfo {author} {\bibfnamefont {Luca}\ \bibnamefont
+  {Capriotti}}, \bibinfo {author} {\bibfnamefont {Alberto}\ \bibnamefont
+  {Parola}}, \ and\ \bibinfo {author} {\bibfnamefont {Sandro}\ \bibnamefont
+  {Sorella}},\ }\href@noop {} {\enquote {\bibinfo {title} {Variational wave
+  functions for frustrated magnetic models},}\ } (\bibinfo {year} {2009}),\
+  \Eprint {http://arxiv.org/abs/0905.4854} {arXiv:0905.4854 [cond-mat.str-el]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Marshall}(1955)}]{Marshall1955}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {W}~\bibnamefont
+  {Marshall}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {{Antiferromagnetism}},}\ }\href {\doibase 10.1098/rspa.1955.0200} {\bibfield
+   {journal} {\bibinfo  {journal} {Proceedings of the Royal Society of London.
+  Series A. Mathematical and Physical Sciences}\ }\textbf {\bibinfo {volume}
+  {232}},\ \bibinfo {pages} {48--68} (\bibinfo {year} {1955})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Choo}\ \emph
+  {et~al.}(2019{\natexlab{a}})\citenamefont {Choo}, \citenamefont {Neupert},\
+  and\ \citenamefont {Carleo}}]{choo2019study}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Kenny}\ \bibnamefont
+  {Choo}}, \bibinfo {author} {\bibfnamefont {Titus}\ \bibnamefont {Neupert}}, \
+  and\ \bibinfo {author} {\bibfnamefont {Giuseppe}\ \bibnamefont {Carleo}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Two-dimensional frustrated
+  j1-j2 model studied with neural network quantum states},}\ }\href {\doibase
+  10.1103/physrevb.100.125124} {\bibfield  {journal} {\bibinfo  {journal}
+  {Physical Review B}\ }\textbf {\bibinfo {volume} {100}} (\bibinfo {year}
+  {2019}{\natexlab{a}}),\ 10.1103/physrevb.100.125124}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Torlai}\ \emph {et~al.}(2019)\citenamefont {Torlai},
+  \citenamefont {Carrasquilla}, \citenamefont {Fishman}, \citenamefont
+  {Melko},\ and\ \citenamefont {Fisher}}]{torlai2019a}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Giacomo}\ \bibnamefont
+  {Torlai}}, \bibinfo {author} {\bibfnamefont {Juan}\ \bibnamefont
+  {Carrasquilla}}, \bibinfo {author} {\bibfnamefont {Matthew~T.}\ \bibnamefont
+  {Fishman}}, \bibinfo {author} {\bibfnamefont {Roger~G.}\ \bibnamefont
+  {Melko}}, \ and\ \bibinfo {author} {\bibfnamefont {Matthew P.~A.}\
+  \bibnamefont {Fisher}},\ }\href@noop {} {\enquote {\bibinfo {title}
+  {wave function positivization via automatic differentiation},}\ } (\bibinfo
+  {year} {2019}),\ \Eprint {http://arxiv.org/abs/1906.04654} {arXiv:1906.04654
+  [quant-ph]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Thibaut}\ \emph {et~al.}(2019)\citenamefont
+  {Thibaut}, \citenamefont {Roscilde},\ and\ \citenamefont
+  {Mezzacapo}}]{Thibaut_2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Jérôme}\
+  \bibnamefont {Thibaut}}, \bibinfo {author} {\bibfnamefont {Tommaso}\
+  \bibnamefont {Roscilde}}, \ and\ \bibinfo {author} {\bibfnamefont {Fabio}\
+  \bibnamefont {Mezzacapo}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Long-range entangled-plaquette states for critical and frustrated quantum
+  systems on a lattice},}\ }\href {\doibase 10.1103/physrevb.100.155148}
+  {\bibfield  {journal} {\bibinfo  {journal} {Physical Review B}\ }\textbf
+  {\bibinfo {volume} {100}} (\bibinfo {year} {2019}),\
+  10.1103/physrevb.100.155148}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Sharir}\ \emph {et~al.}(2020)\citenamefont {Sharir},
+  \citenamefont {Levine}, \citenamefont {Wies}, \citenamefont {Carleo},\ and\
+  \citenamefont {Shashua}}]{sharir2019deep}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Or}~\bibnamefont
+  {Sharir}}, \bibinfo {author} {\bibfnamefont {Yoav}\ \bibnamefont {Levine}},
+  \bibinfo {author} {\bibfnamefont {Noam}\ \bibnamefont {Wies}}, \bibinfo
+  {author} {\bibfnamefont {Giuseppe}\ \bibnamefont {Carleo}}, \ and\ \bibinfo
+  {author} {\bibfnamefont {Amnon}\ \bibnamefont {Shashua}},\ }\bibfield
+  {title} {\enquote {\bibinfo {title} {Deep autoregressive models for the
+  efficient variational simulation of many-body quantum systems},}\ }\href
+  {\doibase 10.1103/physrevlett.124.020503} {\bibfield  {journal} {\bibinfo
+  {journal} {Physical Review Letters}\ }\textbf {\bibinfo {volume} {124}}
+  (\bibinfo {year} {2020}),\ 10.1103/physrevlett.124.020503}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Verstraete}\ and\ \citenamefont
+  {Cirac}(2004)}]{verstraete_renormalization_2004}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {F.}~\bibnamefont
+  {Verstraete}}\ and\ \bibinfo {author} {\bibfnamefont {J.~I.}\ \bibnamefont
+  {Cirac}},\ }\href@noop {} {\enquote {\bibinfo {title} {Renormalization
+  algorithms for quantum-many body systems in two and higher dimensions},}\ }
+  (\bibinfo {year} {2004}),\ \Eprint {http://arxiv.org/abs/cond-mat/0407066}
+  {arXiv:cond-mat/0407066 [cond-mat.str-el]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Yan}\ \emph {et~al.}(2011)\citenamefont {Yan},
+  \citenamefont {Huse},\ and\ \citenamefont {White}}]{yan_spin-liquid_2011}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Simeng}\ \bibnamefont
+  {Yan}}, \bibinfo {author} {\bibfnamefont {David~A.}\ \bibnamefont {Huse}}, \
+  and\ \bibinfo {author} {\bibfnamefont {Steven~R.}\ \bibnamefont {White}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Spin-liquid ground state of
+  the s = 1/2 kagome heisenberg antiferromagnet},}\ }\href {\doibase
+  10.1126/science.1201080} {\bibfield  {journal} {\bibinfo  {journal}
+  {Science}\ }\textbf {\bibinfo {volume} {332}},\ \bibinfo {pages} {1173--1176}
+  (\bibinfo {year} {2011})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Evenbly}\ and\ \citenamefont
+  {Vidal}(2015)}]{evenbly_tensor_2015}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {G.}~\bibnamefont
+  {Evenbly}}\ and\ \bibinfo {author} {\bibfnamefont {G.}~\bibnamefont
+  {Vidal}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Tensor network
+  renormalization},}\ }\href {\doibase 10.1103/PhysRevLett.115.180405}
+  {\bibfield  {journal} {\bibinfo  {journal} {Phys. Rev. Lett.}\ }\textbf
+  {\bibinfo {volume} {115}},\ \bibinfo {pages} {180405} (\bibinfo {year}
+  {2015})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Sandvik}(2010)}]{sandvik2010}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Anders~W.}\
+  \bibnamefont {Sandvik}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Computational {{Studies}} of {{Quantum Spin Systems}}},}\ }\href {\doibase
+  10.1063/1.3518900} {\bibfield  {journal} {\bibinfo  {journal} {AIP Conference
+  Proceedings}\ }\textbf {\bibinfo {volume} {1297}},\ \bibinfo {pages}
+  {135--338} (\bibinfo {year} {2010})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Bl\"ote}\ and\ \citenamefont
+  {Deng}(2002)}]{PhysRevE.66.066110}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Henk W.~J.}\
+  \bibnamefont {Bl\"ote}}\ and\ \bibinfo {author} {\bibfnamefont {Youjin}\
+  \bibnamefont {Deng}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Cluster monte carlo simulation of the transverse ising model},}\ }\href
+  {\doibase 10.1103/PhysRevE.66.066110} {\bibfield  {journal} {\bibinfo
+  {journal} {Phys. Rev. E}\ }\textbf {\bibinfo {volume} {66}},\ \bibinfo
+  {pages} {066110} (\bibinfo {year} {2002})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Vanderstraeten}\ \emph {et~al.}(2016)\citenamefont
+  {Vanderstraeten}, \citenamefont {Haegeman}, \citenamefont {Corboz},\ and\
+  \citenamefont {Verstraete}}]{vanderstraeten_gradient_2016}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Laurens}\ \bibnamefont
+  {Vanderstraeten}}, \bibinfo {author} {\bibfnamefont {Jutho}\ \bibnamefont
+  {Haegeman}}, \bibinfo {author} {\bibfnamefont {Philippe}\ \bibnamefont
+  {Corboz}}, \ and\ \bibinfo {author} {\bibfnamefont {Frank}\ \bibnamefont
+  {Verstraete}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Gradient
+  methods for variational optimization of projected entangled-pair states},}\
+  }\href {\doibase 10.1103/physrevb.94.155123} {\bibfield  {journal} {\bibinfo
+  {journal} {Physical Review B}\ }\textbf {\bibinfo {volume} {94}} (\bibinfo
+  {year} {2016}),\ 10.1103/physrevb.94.155123}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {van~den Oord}\ \emph
+  {et~al.}(2016{\natexlab{a}})\citenamefont {van~den Oord}, \citenamefont
+  {Kalchbrenner}, \citenamefont {Espeholt}, \citenamefont {kavukcuoglu},
+  \citenamefont {Vinyals},\ and\ \citenamefont {Graves}}]{PixelCNN}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Aaron}\ \bibnamefont
+  {van~den Oord}}, \bibinfo {author} {\bibfnamefont {Nal}\ \bibnamefont
+  {Kalchbrenner}}, \bibinfo {author} {\bibfnamefont {Lasse}\ \bibnamefont
+  {Espeholt}}, \bibinfo {author} {\bibfnamefont {koray}\ \bibnamefont
+  {kavukcuoglu}}, \bibinfo {author} {\bibfnamefont {Oriol}\ \bibnamefont
+  {Vinyals}}, \ and\ \bibinfo {author} {\bibfnamefont {Alex}\ \bibnamefont
+  {Graves}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Conditional
+  image generation with pixelcnn decoders},}\ }in\ \href
+  {http://papers.nips.cc/paper/6527-conditional-image-generation-with-pixelcnn-decoders.pdf}
+  {\emph {\bibinfo {booktitle} {Advances in Neural Information Processing
+  Systems 29}}},\ \bibinfo {editor} {edited by\ \bibinfo {editor}
+  {\bibfnamefont {D.~D.}\ \bibnamefont {Lee}}, \bibinfo {editor} {\bibfnamefont
+  {M.}~\bibnamefont {Sugiyama}}, \bibinfo {editor} {\bibfnamefont {U.~V.}\
+  \bibnamefont {Luxburg}}, \bibinfo {editor} {\bibfnamefont {I.}~\bibnamefont
+  {Guyon}}, \ and\ \bibinfo {editor} {\bibfnamefont {R.}~\bibnamefont
+  {Garnett}}}\ (\bibinfo  {publisher} {Curran Associates, Inc.},\ \bibinfo
+  {year} {2016})\ pp.\ \bibinfo {pages} {4790--4798}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Gros}(1990)}]{Claudius90}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Claudius}\
+  \bibnamefont {Gros}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Criterion for a good variational wave function},}\ }\href {\doibase
+  10.1103/PhysRevB.42.6835} {\bibfield  {journal} {\bibinfo  {journal} {Phys.
+  Rev. B}\ }\textbf {\bibinfo {volume} {42}},\ \bibinfo {pages} {6835--6838}
+  (\bibinfo {year} {1990})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Assaraf}\ and\ \citenamefont
+  {Caffarel}(2003)}]{Assaraf2003}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Roland}\ \bibnamefont
+  {Assaraf}}\ and\ \bibinfo {author} {\bibfnamefont {Michel}\ \bibnamefont
+  {Caffarel}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Zero-variance
+  zero-bias principle for observables in quantum monte carlo: Application to
+  forces},}\ }\href {\doibase 10.1063/1.1621615} {\bibfield  {journal}
+  {\bibinfo  {journal} {The Journal of Chemical Physics}\ }\textbf {\bibinfo
+  {volume} {119}},\ \bibinfo {pages} {10536--10552} (\bibinfo {year}
+  {2003})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Hubig}\ \emph {et~al.}(2018)\citenamefont {Hubig},
+  \citenamefont {Haegeman},\ and\ \citenamefont {Schollwöck}}]{Hubig_2018}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {C.}~\bibnamefont
+  {Hubig}}, \bibinfo {author} {\bibfnamefont {J.}~\bibnamefont {Haegeman}}, \
+  and\ \bibinfo {author} {\bibfnamefont {U.}~\bibnamefont {Schollwöck}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Error estimates for
+  extrapolations with matrix-product states},}\ }\href {\doibase
+  10.1103/physrevb.97.045125} {\bibfield  {journal} {\bibinfo  {journal}
+  {Physical Review B}\ }\textbf {\bibinfo {volume} {97}} (\bibinfo {year}
+  {2018}),\ 10.1103/physrevb.97.045125}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Bañuls}\ \emph {et~al.}(2019)\citenamefont
+  {Bañuls}, \citenamefont {Huse},\ and\ \citenamefont
+  {Cirac}}]{bauls2019entanglement}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Mari~Carmen}\
+  \bibnamefont {Bañuls}}, \bibinfo {author} {\bibfnamefont {David~A.}\
+  \bibnamefont {Huse}}, \ and\ \bibinfo {author} {\bibfnamefont {J.~Ignacio}\
+  \bibnamefont {Cirac}},\ }\href@noop {} {\enquote {\bibinfo {title} {How much
+  entanglement is needed to reduce the energy variance?}}\ } (\bibinfo {year}
+  {2019}),\ \Eprint {http://arxiv.org/abs/1912.07639} {arXiv:1912.07639
+  [quant-ph]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Hermans}\ and\ \citenamefont
+  {Schrauwen}(2013)}]{hermans2013training}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Michiel}\ \bibnamefont
+  {Hermans}}\ and\ \bibinfo {author} {\bibfnamefont {Benjamin}\ \bibnamefont
+  {Schrauwen}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Training and
+  analysing deep recurrent neural networks},}\ }in\ \href
+  {http://papers.nips.cc/paper/5166-training-and-analysing-deep-recurrent-neural-networks.pdf}
+  {\emph {\bibinfo {booktitle} {Advances in Neural Information Processing
+  Systems 26}}},\ \bibinfo {editor} {edited by\ \bibinfo {editor}
+  {\bibfnamefont {C.~J.~C.}\ \bibnamefont {Burges}}, \bibinfo {editor}
+  {\bibfnamefont {L.}~\bibnamefont {Bottou}}, \bibinfo {editor} {\bibfnamefont
+  {M.}~\bibnamefont {Welling}}, \bibinfo {editor} {\bibfnamefont
+  {Z.}~\bibnamefont {Ghahramani}}, \ and\ \bibinfo {editor} {\bibfnamefont
+  {K.~Q.}\ \bibnamefont {Weinberger}}}\ (\bibinfo  {publisher} {Curran
+  Associates, Inc.},\ \bibinfo {year} {2013})\ pp.\ \bibinfo {pages}
+  {190--198}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Chang}\ \emph {et~al.}(2017)\citenamefont {Chang},
+  \citenamefont {Zhang}, \citenamefont {Han}, \citenamefont {Yu}, \citenamefont
+  {Guo}, \citenamefont {Tan}, \citenamefont {Cui}, \citenamefont {Witbrock},
+  \citenamefont {Hasegawa-Johnson},\ and\ \citenamefont
+  {Huang}}]{chang2017dilated}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Shiyu}\ \bibnamefont
+  {Chang}}, \bibinfo {author} {\bibfnamefont {Yang}\ \bibnamefont {Zhang}},
+  \bibinfo {author} {\bibfnamefont {Wei}\ \bibnamefont {Han}}, \bibinfo
+  {author} {\bibfnamefont {Mo}~\bibnamefont {Yu}}, \bibinfo {author}
+  {\bibfnamefont {Xiaoxiao}\ \bibnamefont {Guo}}, \bibinfo {author}
+  {\bibfnamefont {Wei}\ \bibnamefont {Tan}}, \bibinfo {author} {\bibfnamefont
+  {Xiaodong}\ \bibnamefont {Cui}}, \bibinfo {author} {\bibfnamefont {Michael}\
+  \bibnamefont {Witbrock}}, \bibinfo {author} {\bibfnamefont {Mark}\
+  \bibnamefont {Hasegawa-Johnson}}, \ and\ \bibinfo {author} {\bibfnamefont
+  {Thomas~S.}\ \bibnamefont {Huang}},\ }\href@noop {} {\enquote {\bibinfo
+  {title} {Dilated recurrent neural networks},}\ } (\bibinfo {year} {2017}),\
+  \Eprint {http://arxiv.org/abs/1710.02224} {arXiv:1710.02224 [cs.AI]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Bahdanau}\ \emph {et~al.}(2014)\citenamefont
+  {Bahdanau}, \citenamefont {Cho},\ and\ \citenamefont
+  {Bengio}}]{bahdanau2014neural}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Dzmitry}\ \bibnamefont
+  {Bahdanau}}, \bibinfo {author} {\bibfnamefont {Kyunghyun}\ \bibnamefont
+  {Cho}}, \ and\ \bibinfo {author} {\bibfnamefont {Yoshua}\ \bibnamefont
+  {Bengio}},\ }\href@noop {} {\enquote {\bibinfo {title} {Neural machine
+  translation by jointly learning to align and translate},}\ } (\bibinfo {year}
+  {2014}),\ \Eprint {http://arxiv.org/abs/1409.0473} {arXiv:1409.0473 [cs.CL]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Martens}\ \emph {et~al.}(2018)\citenamefont
+  {Martens}, \citenamefont {Ba},\ and\ \citenamefont
+  {Johnson}}]{martens2018kronecker}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {James}\ \bibnamefont
+  {Martens}}, \bibinfo {author} {\bibfnamefont {Jimmy}\ \bibnamefont {Ba}}, \
+  and\ \bibinfo {author} {\bibfnamefont {Matt}\ \bibnamefont {Johnson}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {Kronecker-factored curvature
+  approximations for recurrent neural networks},}\ }in\ \href
+  {https://openreview.net/forum?id=HyMTkQZAb} {\emph {\bibinfo {booktitle}
+  {International Conference on Learning Representations}}}\ (\bibinfo {year}
+  {2018})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Choo}\ \emph
+  {et~al.}(2019{\natexlab{b}})\citenamefont {Choo}, \citenamefont {Mezzacapo},\
+  and\ \citenamefont {Carleo}}]{choo2019fermionic}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Kenny}\ \bibnamefont
+  {Choo}}, \bibinfo {author} {\bibfnamefont {Antonio}\ \bibnamefont
+  {Mezzacapo}}, \ and\ \bibinfo {author} {\bibfnamefont {Giuseppe}\
+  \bibnamefont {Carleo}},\ }\href@noop {} {\enquote {\bibinfo {title}
+  {Fermionic neural-network states for ab-initio electronic structure},}\ }
+  (\bibinfo {year} {2019}{\natexlab{b}}),\ \Eprint
+  {http://arxiv.org/abs/1909.12852} {arXiv:1909.12852 [physics.comp-ph]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Carrasquilla}\ \emph
+  {et~al.}(2019{\natexlab{b}})\citenamefont {Carrasquilla}, \citenamefont
+  {Luo}, \citenamefont {Pérez}, \citenamefont {Milsted}, \citenamefont
+  {Clark}, \citenamefont {Volkovs},\ and\ \citenamefont
+  {Aolita}}]{carrasquilla2019probabilistic}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Juan}\ \bibnamefont
+  {Carrasquilla}}, \bibinfo {author} {\bibfnamefont {Di}~\bibnamefont {Luo}},
+  \bibinfo {author} {\bibfnamefont {Felipe}\ \bibnamefont {Pérez}}, \bibinfo
+  {author} {\bibfnamefont {Ashley}\ \bibnamefont {Milsted}}, \bibinfo {author}
+  {\bibfnamefont {Bryan~K.}\ \bibnamefont {Clark}}, \bibinfo {author}
+  {\bibfnamefont {Maksims}\ \bibnamefont {Volkovs}}, \ and\ \bibinfo {author}
+  {\bibfnamefont {Leandro}\ \bibnamefont {Aolita}},\ }\href@noop {} {\enquote
+  {\bibinfo {title} {Probabilistic simulation of quantum circuits with the
+  transformer},}\ } (\bibinfo {year} {2019}{\natexlab{b}}),\ \Eprint
+  {http://arxiv.org/abs/1912.11052} {arXiv:1912.11052 [cond-mat.str-el]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Roth}(2020)}]{roth2020iterative}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Christopher}\
+  \bibnamefont {Roth}},\ }\href@noop {} {\enquote {\bibinfo {title} {Iterative
+  retraining of quantum spin models using recurrent neural networks},}\ }
+  (\bibinfo {year} {2020}),\ \Eprint {http://arxiv.org/abs/2003.06228}
+  {arXiv:2003.06228 [physics.comp-ph]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Abadi}\ \emph {et~al.}(2015)\citenamefont {Abadi},
+  \citenamefont {Agarwal}, \citenamefont {Barham}, \citenamefont {Brevdo},
+  \citenamefont {Chen}, \citenamefont {Citro}, \citenamefont {Corrado},
+  \citenamefont {Davis}, \citenamefont {Dean}, \citenamefont {Devin},
+  \citenamefont {Ghemawat}, \citenamefont {Goodfellow}, \citenamefont {Harp},
+  \citenamefont {Irving}, \citenamefont {Isard}, \citenamefont {Jia},
+  \citenamefont {Jozefowicz}, \citenamefont {Kaiser}, \citenamefont {Kudlur},
+  \citenamefont {Levenberg}, \citenamefont {Man\'{e}}, \citenamefont {Monga},
+  \citenamefont {Moore}, \citenamefont {Murray}, \citenamefont {Olah},
+  \citenamefont {Schuster}, \citenamefont {Shlens}, \citenamefont {Steiner},
+  \citenamefont {Sutskever}, \citenamefont {Talwar}, \citenamefont {Tucker},
+  \citenamefont {Vanhoucke}, \citenamefont {Vasudevan}, \citenamefont
+  {Vi\'{e}gas}, \citenamefont {Vinyals}, \citenamefont {Warden}, \citenamefont
+  {Wattenberg}, \citenamefont {Wicke}, \citenamefont {Yu},\ and\ \citenamefont
+  {Zheng}}]{tensorflow2015-whitepaper}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Mart\'{\i}n}\
+  \bibnamefont {Abadi}}, \bibinfo {author} {\bibfnamefont {Ashish}\
+  \bibnamefont {Agarwal}}, \bibinfo {author} {\bibfnamefont {Paul}\
+  \bibnamefont {Barham}}, \bibinfo {author} {\bibfnamefont {Eugene}\
+  \bibnamefont {Brevdo}}, \bibinfo {author} {\bibfnamefont {Zhifeng}\
+  \bibnamefont {Chen}}, \bibinfo {author} {\bibfnamefont {Craig}\ \bibnamefont
+  {Citro}}, \bibinfo {author} {\bibfnamefont {Greg~S.}\ \bibnamefont
+  {Corrado}}, \bibinfo {author} {\bibfnamefont {Andy}\ \bibnamefont {Davis}},
+  \bibinfo {author} {\bibfnamefont {Jeffrey}\ \bibnamefont {Dean}}, \bibinfo
+  {author} {\bibfnamefont {Matthieu}\ \bibnamefont {Devin}}, \bibinfo {author}
+  {\bibfnamefont {Sanjay}\ \bibnamefont {Ghemawat}}, \bibinfo {author}
+  {\bibfnamefont {Ian}\ \bibnamefont {Goodfellow}}, \bibinfo {author}
+  {\bibfnamefont {Andrew}\ \bibnamefont {Harp}}, \bibinfo {author}
+  {\bibfnamefont {Geoffrey}\ \bibnamefont {Irving}}, \bibinfo {author}
+  {\bibfnamefont {Michael}\ \bibnamefont {Isard}}, \bibinfo {author}
+  {\bibfnamefont {Yangqing}\ \bibnamefont {Jia}}, \bibinfo {author}
+  {\bibfnamefont {Rafal}\ \bibnamefont {Jozefowicz}}, \bibinfo {author}
+  {\bibfnamefont {Lukasz}\ \bibnamefont {Kaiser}}, \bibinfo {author}
+  {\bibfnamefont {Manjunath}\ \bibnamefont {Kudlur}}, \bibinfo {author}
+  {\bibfnamefont {Josh}\ \bibnamefont {Levenberg}}, \bibinfo {author}
+  {\bibfnamefont {Dan}\ \bibnamefont {Man\'{e}}}, \bibinfo {author}
+  {\bibfnamefont {Rajat}\ \bibnamefont {Monga}}, \bibinfo {author}
+  {\bibfnamefont {Sherry}\ \bibnamefont {Moore}}, \bibinfo {author}
+  {\bibfnamefont {Derek}\ \bibnamefont {Murray}}, \bibinfo {author}
+  {\bibfnamefont {Chris}\ \bibnamefont {Olah}}, \bibinfo {author}
+  {\bibfnamefont {Mike}\ \bibnamefont {Schuster}}, \bibinfo {author}
+  {\bibfnamefont {Jonathon}\ \bibnamefont {Shlens}}, \bibinfo {author}
+  {\bibfnamefont {Benoit}\ \bibnamefont {Steiner}}, \bibinfo {author}
+  {\bibfnamefont {Ilya}\ \bibnamefont {Sutskever}}, \bibinfo {author}
+  {\bibfnamefont {Kunal}\ \bibnamefont {Talwar}}, \bibinfo {author}
+  {\bibfnamefont {Paul}\ \bibnamefont {Tucker}}, \bibinfo {author}
+  {\bibfnamefont {Vincent}\ \bibnamefont {Vanhoucke}}, \bibinfo {author}
+  {\bibfnamefont {Vijay}\ \bibnamefont {Vasudevan}}, \bibinfo {author}
+  {\bibfnamefont {Fernanda}\ \bibnamefont {Vi\'{e}gas}}, \bibinfo {author}
+  {\bibfnamefont {Oriol}\ \bibnamefont {Vinyals}}, \bibinfo {author}
+  {\bibfnamefont {Pete}\ \bibnamefont {Warden}}, \bibinfo {author}
+  {\bibfnamefont {Martin}\ \bibnamefont {Wattenberg}}, \bibinfo {author}
+  {\bibfnamefont {Martin}\ \bibnamefont {Wicke}}, \bibinfo {author}
+  {\bibfnamefont {Yuan}\ \bibnamefont {Yu}}, \ and\ \bibinfo {author}
+  {\bibfnamefont {Xiaoqiang}\ \bibnamefont {Zheng}},\ }\href
+  {http://tensorflow.org/} {\enquote {\bibinfo {title} {{TensorFlow}:
+  Large-scale machine learning on heterogeneous systems},}\ } (\bibinfo {year}
+  {2015}),\ \bibinfo {note} {software available from
+  tensorflow.org}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Appleyard}\ \emph {et~al.}(2016)\citenamefont
+  {Appleyard}, \citenamefont {Kocisky},\ and\ \citenamefont
+  {Blunsom}}]{appleyard2016optimizing}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Jeremy}\ \bibnamefont
+  {Appleyard}}, \bibinfo {author} {\bibfnamefont {Tomas}\ \bibnamefont
+  {Kocisky}}, \ and\ \bibinfo {author} {\bibfnamefont {Phil}\ \bibnamefont
+  {Blunsom}},\ }\href@noop {} {\enquote {\bibinfo {title} {Optimizing
+  performance of recurrent neural networks on gpus},}\ } (\bibinfo {year}
+  {2016}),\ \Eprint {http://arxiv.org/abs/1604.01946} {arXiv:1604.01946
+  [cs.LG]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {van~den Oord}\ \emph
+  {et~al.}(2016{\natexlab{b}})\citenamefont {van~den Oord}, \citenamefont
+  {Kalchbrenner},\ and\ \citenamefont {Kavukcuoglu}}]{oord2016pixel}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Aaron}\ \bibnamefont
+  {van~den Oord}}, \bibinfo {author} {\bibfnamefont {Nal}\ \bibnamefont
+  {Kalchbrenner}}, \ and\ \bibinfo {author} {\bibfnamefont {Koray}\
+  \bibnamefont {Kavukcuoglu}},\ }\href@noop {} {\enquote {\bibinfo {title}
+  {Pixel recurrent neural networks},}\ } (\bibinfo {year}
+  {2016}{\natexlab{b}}),\ \Eprint {http://arxiv.org/abs/1601.06759} {1601.06759
+  [cs.CV]} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Wu}\ \emph {et~al.}(2016)\citenamefont {Wu},
+  \citenamefont {Zhang}, \citenamefont {Zhang}, \citenamefont {Bengio},\ and\
+  \citenamefont {Salakhutdinov}}]{wu2016multiplicative}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Yuhuai}\ \bibnamefont
+  {Wu}}, \bibinfo {author} {\bibfnamefont {Saizheng}\ \bibnamefont {Zhang}},
+  \bibinfo {author} {\bibfnamefont {Ying}\ \bibnamefont {Zhang}}, \bibinfo
+  {author} {\bibfnamefont {Yoshua}\ \bibnamefont {Bengio}}, \ and\ \bibinfo
+  {author} {\bibfnamefont {Ruslan~R}\ \bibnamefont {Salakhutdinov}},\
+  }\bibfield  {title} {\enquote {\bibinfo {title} {On multiplicative
+  integration with recurrent neural networks},}\ }in\ \href@noop {} {\emph
+  {\bibinfo {booktitle} {Advances in neural information processing systems}}}\
+  (\bibinfo {year} {2016})\ pp.\ \bibinfo {pages} {2856--2864},\ \Eprint
+  {http://arxiv.org/abs/1606.06630} {1606.06630} \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Sandvik}\ and\ \citenamefont
+  {Vidal}(2007)}]{sandvik_variational_2007}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.~W.}\ \bibnamefont
+  {Sandvik}}\ and\ \bibinfo {author} {\bibfnamefont {G.}~\bibnamefont
+  {Vidal}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Variational
+  quantum monte carlo simulations with tensor-network states},}\ }\href
+  {\doibase 10.1103/PhysRevLett.99.220602} {\bibfield  {journal} {\bibinfo
+  {journal} {Phys. Rev. Lett.}\ }\textbf {\bibinfo {volume} {99}},\ \bibinfo
+  {pages} {220602} (\bibinfo {year} {2007})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Zhang}\ \emph {et~al.}(2019)\citenamefont {Zhang},
+  \citenamefont {Wan},\ and\ \citenamefont {Yao}}]{zhang2019automatic}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Shi-Xin}\ \bibnamefont
+  {Zhang}}, \bibinfo {author} {\bibfnamefont {Zhou-Quan}\ \bibnamefont {Wan}},
+  \ and\ \bibinfo {author} {\bibfnamefont {Hong}\ \bibnamefont {Yao}},\
+  }\href@noop {} {\enquote {\bibinfo {title} {Automatic differentiable monte
+  carlo: Theory and application},}\ } (\bibinfo {year} {2019}),\ \Eprint
+  {http://arxiv.org/abs/1911.09117} {arXiv:1911.09117 [physics.comp-ph]}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Kingma}\ and\ \citenamefont
+  {Ba}(2014)}]{kingma2014adam}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Diederik~P.}\
+  \bibnamefont {Kingma}}\ and\ \bibinfo {author} {\bibfnamefont {Jimmy}\
+  \bibnamefont {Ba}},\ }\href@noop {} {\enquote {\bibinfo {title} {Adam: A
+  method for stochastic optimization},}\ } (\bibinfo {year} {2014}),\ \Eprint
+  {http://arxiv.org/abs/1412.6980} {arXiv:1412.6980 [cs.LG]} \BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Assaraf}\ and\ \citenamefont
+  {Caffarel}(1999)}]{Assaraf_1999}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Roland}\ \bibnamefont
+  {Assaraf}}\ and\ \bibinfo {author} {\bibfnamefont {Michel}\ \bibnamefont
+  {Caffarel}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Zero-variance
+  principle for monte carlo algorithms},}\ }\href {\doibase
+  10.1103/physrevlett.83.4682} {\bibfield  {journal} {\bibinfo  {journal}
+  {Physical Review Letters}\ }\textbf {\bibinfo {volume} {83}},\ \bibinfo
+  {pages} {4682–4685} (\bibinfo {year} {1999})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Clark}(2010)}]{Clark2010}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Bryan}\ \bibnamefont
+  {Clark}},\ }\href
+  {http://boulderschool.yale.edu/sites/default/files/files/VMC_Final_Notes.pdf}
+  {\enquote {\bibinfo {title} {Variational monte carlo notes for boulder summer
+  school 2010},}\ } (\bibinfo {year} {2010})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Mohamed}\ \emph {et~al.}(2019)\citenamefont
+  {Mohamed}, \citenamefont {Rosca}, \citenamefont {Figurnov},\ and\
+  \citenamefont {Mnih}}]{mohamed2019monte}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Shakir}\ \bibnamefont
+  {Mohamed}}, \bibinfo {author} {\bibfnamefont {Mihaela}\ \bibnamefont
+  {Rosca}}, \bibinfo {author} {\bibfnamefont {Michael}\ \bibnamefont
+  {Figurnov}}, \ and\ \bibinfo {author} {\bibfnamefont {Andriy}\ \bibnamefont
+  {Mnih}},\ }\href@noop {} {\enquote {\bibinfo {title} {Monte carlo gradient
+  estimation in machine learning},}\ } (\bibinfo {year} {2019}),\ \Eprint
+  {http://arxiv.org/abs/1906.10652} {arXiv:1906.10652 [stat.ML]} \BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Sutton}\ \emph {et~al.}(2000)\citenamefont {Sutton},
+  \citenamefont {McAllester}, \citenamefont {Singh},\ and\ \citenamefont
+  {Mansour}}]{sutton2000policy}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Richard~S}\
+  \bibnamefont {Sutton}}, \bibinfo {author} {\bibfnamefont {David~A}\
+  \bibnamefont {McAllester}}, \bibinfo {author} {\bibfnamefont {Satinder~P}\
+  \bibnamefont {Singh}}, \ and\ \bibinfo {author} {\bibfnamefont {Yishay}\
+  \bibnamefont {Mansour}},\ }\bibfield  {title} {\enquote {\bibinfo {title}
+  {Policy gradient methods for reinforcement learning with function
+  approximation},}\ }in\ \href
+  {https://papers.nips.cc/paper/1713-policy-gradient-methods-for-reinforcement-learning-with-function-approximation.pdf}
+  {\emph {\bibinfo {booktitle} {Advances in neural information processing
+  systems}}}\ (\bibinfo {year} {2000})\ pp.\ \bibinfo {pages}
+  {1057--1063}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Lieb}\ and\ \citenamefont {Mattis}(1962)}]{Lieb1962}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Elliott}\ \bibnamefont
+  {Lieb}}\ and\ \bibinfo {author} {\bibfnamefont {Daniel}\ \bibnamefont
+  {Mattis}},\ }\bibfield  {title} {\enquote {\bibinfo {title} {Ordering energy
+  levels of interacting spin systems},}\ }\href {\doibase 10.1063/1.1724276}
+  {\bibfield  {journal} {\bibinfo  {journal} {Journal of Mathematical Physics}\
+  }\textbf {\bibinfo {volume} {3}},\ \bibinfo {pages} {749--751} (\bibinfo
+  {year} {1962})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Wang}\ and\ \citenamefont
+  {Davis}(2020)}]{NAQSentropy}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {Zhaoyou}\ \bibnamefont
+  {Wang}}\ and\ \bibinfo {author} {\bibfnamefont {Emily~J.}\ \bibnamefont
+  {Davis}},\ }\href@noop {} {\enquote {\bibinfo {title} {Calculating renyi
+  entropies with neural autoregressive quantum states},}\ } (\bibinfo {year}
+  {2020}),\ \Eprint {http://arxiv.org/abs/2003.01358} {arXiv:2003.01358
+  [quant-ph]} \BibitemShut {NoStop}%
+\end{thebibliography}%
+
+
+\end{document}
+
